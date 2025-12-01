@@ -1,0 +1,190 @@
+# COMPLETE ARD-LoRA CONFIGURATION TEMPLATE
+# ALL VALUES MUST BE SPECIFIED - NO DEFAULTS IN CODE
+
+# ===============================================
+# MODEL AND DATASET CONFIGURATION (REQUIRED)
+# ===============================================
+
+# Model Configuration
+model_name: "LLaMA2-7B"                    # Model identifier for config hierarchy
+model_name_or_path: "meta-llama/Llama-2-7b-hf"  # HuggingFace model path
+tokenizer_name: null                       # Optional: override tokenizer (null = use model tokenizer)
+
+# Dataset Configuration  
+dataset_name: "BayesianPEFT"              # Dataset type identifier
+dataset_name_specific: "alpaca"           # Specific dataset to load (alpaca, dolly, etc.)
+
+# Run Configuration
+runId: 1                                   # Run identifier for output directories
+
+# ===============================================
+# CORE TRAINING PARAMETERS (REQUIRED)
+# ===============================================
+
+# Training Configuration
+batch_size: 4                          # Per-device batch size
+gradient_accumulation_steps: 4          # Gradient accumulation steps
+train_epochs: 3                        # Number of training epochs
+learning_rate: 2e-5                    # Learning rate
+weight_decay: 0.0                      # Weight decay
+lr_scheduler_type: "linear"             # Learning rate scheduler
+warmup_ratio: 0.03                     # Warmup ratio
+
+# Precision Configuration
+bf16: false                             # Use BF16 precision (A100/H100)
+fp16: true                              # Use FP16 precision (V100/RTX)
+load_in_4bit: false                     # Enable 4-bit quantization
+
+# Training Strategy
+save_strategy: "epoch"                  # Save strategy: "epoch" or "steps"
+eval_strategy: "epoch"                  # Evaluation strategy: "epoch", "steps", or "no"
+save_steps: 500                         # Save every N steps (if save_strategy="steps")
+load_best_model_at_end: true           # Load best model at end
+remove_unused_columns: false           # Keep all columns in dataset
+
+# Optimization
+max_grad_norm: 1.0                      # Gradient clipping norm
+optim: "adamw_torch"                    # Optimizer type
+gradient_checkpointing: true            # Enable gradient checkpointing for memory
+use_cache: false                        # Disable KV caching for memory optimization
+
+# Logging and Monitoring
+logging_steps: 50                       # Log every N steps
+logging_dir: "./logs/tensorboard"       # TensorBoard logging directory
+
+# Hardware Configuration
+dataloader_num_workers: 0               # Number of data loading workers (0 for single process)
+
+# ===============================================
+# ARD-LORA SPECIFIC PARAMETERS (REQUIRED)
+# ===============================================
+
+# LoRA Configuration
+rank: 64                                # LoRA rank
+scaling: 1.0                           # LoRA scaling factor
+max_lora_rank_threshold: 64            # Maximum rank for LoRA parameter detection
+
+# ProbLoRA Model Parameters
+num_tokens: 2048                        # Number of tokens for ARD prior estimation
+ard_prior_samples: 100                  # Number of samples for ARD prior estimation
+
+# Numerical Stability Parameters (Clamp Values)
+logvar_clamp_min: -15.0                 # Minimum logvar clamp value (forward pass)
+logvar_clamp_max: 15.0                  # Maximum logvar clamp value (forward pass)
+beta_logvar_clamp_min: -10.0           # Minimum logvar clamp value (beta sampling)
+beta_logvar_clamp_max: 10.0            # Maximum logvar clamp value (beta sampling)
+sample_clamp_min: -50.0                # Minimum sample clamp value (prevents overflow)
+sample_clamp_max: 50.0                 # Maximum sample clamp value (prevents overflow)
+
+# ARD Loss Configuration
+kl_loss_beta: 0.01                     # KL divergence loss weight
+
+# ARD Relevance Thresholds
+ard_high_relevance_threshold: 0.1       # Threshold for high relevance classification
+ard_medium_relevance_threshold: 0.01    # Threshold for medium relevance classification
+
+# ===============================================
+# UNCERTAINTY EVALUATION PARAMETERS (REQUIRED)
+# ===============================================
+
+# Uncertainty Metrics
+uncertainty_eval_samples: 1000          # Number of samples for uncertainty evaluation
+uncertainty_n_bins: 15                  # Number of bins for calibration metrics
+
+# ===============================================
+# DATASET CONFIGURATION (REQUIRED)
+# ===============================================
+
+# Sequence Processing
+max_len: 2048                           # Maximum sequence length
+num_labels: 0                           # Number of labels (must be 0 for CLM)
+
+# Validation Dataset Split
+validation_split_ratio: 0.1             # Fraction of training data for validation (if no val set)
+min_validation_samples: 2000            # Minimum samples for validation split
+max_ard_ratio: 0.8                     # Maximum fraction of validation data for ARD
+
+# Data Reproducibility
+random_seed: 42                         # Random seed for reproducible splits
+
+# ===============================================
+# CALLBACK CONFIGURATION (REQUIRED)
+# ===============================================
+
+# Callbacks Control
+enable_callbacks: true                  # Enable ARD callbacks
+
+# Plotting
+enable_plotting: true                   # Enable latent space plotting
+plot_start_epoch: 2                    # Start plotting from this epoch
+plot_interval: 2                       # Plot every N epochs
+plot_batch_size: 16                    # Batch size for plotting data
+
+# Resampling
+enable_resampling: true                 # Enable validation resampling
+
+# ===============================================
+# MEMORY OPTIMIZATION (OPTIONAL WITH DEFAULTS)
+# ===============================================
+
+# GPU Memory Management
+gpu_memory_fraction: 0.9                # Fraction of GPU memory to use
+
+# Gradient Checkpointing (optional advanced settings)
+gradient_checkpointing_kwargs:
+  use_reentrant: false                  # Use non-reentrant checkpointing
+
+# ===============================================
+# REPORTING AND OUTPUT (REQUIRED)
+# ===============================================
+
+# Reporting Configuration
+report_to: ["tensorboard"]              # Reporting backends
+
+# ===============================================
+# OPTIONAL DEBUG PARAMETERS
+# ===============================================
+
+# Dataset Debugging (optional)
+debug_dataset_filtering: false          # Enable dataset filtering debug analysis
+checkpoint_debug: false                 # Enable checkpoint debugging
+
+# ===============================================
+# OPTIONAL ADVANCED PARAMETERS
+# ===============================================
+
+# Evaluation Control (optional - can be null)
+eval_steps: null                        # Evaluate every N steps (null for epoch-based)
+metric_for_best_model: "eval_loss"      # Metric for best model selection (or null)
+
+# ===============================================
+# CONFIGURATION VALIDATION NOTES
+# ===============================================
+
+# Required for run_training_cached.py:
+# - model_name: Used for config hierarchy
+# - model_name_or_path: HuggingFace model identifier
+# - dataset_name: Dataset type for config hierarchy  
+# - dataset_name_specific: Specific dataset to load
+# - runId: Run identifier for directory structure
+# - num_labels: Must be 0 for causal language modeling
+# - load_in_4bit: Quantization setting (affects parameter training)
+# - use_cache: KV caching control (disable for memory optimization)
+# - All training, ARD, uncertainty, and callback parameters
+
+# Memory Considerations for 40GB A100:
+# - use_cache: false (reduces memory usage)
+# - gradient_checkpointing: true (trades compute for memory)
+# - bf16: true (better precision and speed on A100)
+# - Adjust batch_size and gradient_accumulation_steps as needed
+
+# ===============================================
+# USAGE EXAMPLE
+# ===============================================
+
+# To use this configuration:
+# 1. Copy this template to your config file (e.g., config.yaml)
+# 2. Modify all values according to your requirements
+# 3. Ensure ALL required parameters are specified
+# 4. Update config.py to load your YAML file
+# 5. Run: python run_training_cached.py

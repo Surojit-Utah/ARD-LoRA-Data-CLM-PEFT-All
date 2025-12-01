@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Compiled extensions
+*.so
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# PyTorch / Data
+*.pt
+*.pth
+
+# Jupyter
+.ipynb_checkpoints
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Logs
+logs/
+*.log
+
+# Backup files
+*.backup
+
+# Text files
+*.txt
+docs/
+*.md
+
+#Backup files
+*.backup
+
+# Ignore dataset cache directory
+dataloader/dataset_test_cache/
+dataloader/unit_tests/
+dataloader/sample/
