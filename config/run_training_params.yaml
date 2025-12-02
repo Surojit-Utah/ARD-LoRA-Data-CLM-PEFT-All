@@ -76,7 +76,7 @@ defaults:
   apply_lora_to_lm_head: false  # Optional: apply LoRA to output head
   
   # ProbLoRA Model Parameters
-  num_tokens: ${max_len}  # Always match max_len for full sequence ARD coverage
+  # num_tokens: Will be automatically set to max_len from dataset-specific config
   ard_prior_samples: 100  # Reduced from 100 to 25 for faster training
   
   # Numerical Stability Parameters - ULTRA CONSERVATIVE

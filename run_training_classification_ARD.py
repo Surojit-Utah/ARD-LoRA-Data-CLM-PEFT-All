@@ -41,13 +41,36 @@ def _merge_config(defaults: dict):
     
     # Apply dataset-specific config
     dataset_name = merged.get("dataset_name")
-    if dataset_name and "datasets" in cfg and dataset_name in cfg["datasets"]:
-        dataset_cfg = cfg["datasets"][dataset_name]
-        if dataset_cfg:
-            merged.update(dataset_cfg)
+    dataset_name_specific = merged.get("dataset_name_specific", dataset_name)
+    
+    if "datasets" in cfg:
+        # Try direct lookup first (e.g., datasets.arc_easy)
+        if dataset_name_specific and dataset_name_specific in cfg["datasets"]:
+            dataset_cfg = cfg["datasets"][dataset_name_specific]
+            if dataset_cfg and isinstance(dataset_cfg, dict):
+                merged.update(dataset_cfg)
+        # Try nested lookup (e.g., datasets.BayesianPEFT.arc_easy)
+        elif dataset_name and dataset_name in cfg["datasets"]:
+            parent_cfg = cfg["datasets"][dataset_name]
+            if isinstance(parent_cfg, dict) and dataset_name_specific in parent_cfg:
+                dataset_cfg = parent_cfg[dataset_name_specific]
+                if dataset_cfg and isinstance(dataset_cfg, dict):
+                    merged.update(dataset_cfg)
+        # Try BayesianPEFT nesting specifically
+        elif "BayesianPEFT" in cfg["datasets"]:
+            bayesian_peft_cfg = cfg["datasets"]["BayesianPEFT"]
+            if isinstance(bayesian_peft_cfg, dict) and dataset_name_specific in bayesian_peft_cfg:
+                dataset_cfg = bayesian_peft_cfg[dataset_name_specific]
+                if dataset_cfg and isinstance(dataset_cfg, dict):
+                    merged.update(dataset_cfg)
     
     # Validate and fix data types for critical parameters
     _validate_config_types(merged)
+    
+    # Set num_tokens to max_len if not explicitly set (handles ${max_len} variable substitution)
+    if "max_len" in merged and ("num_tokens" not in merged or merged.get("num_tokens") == "${max_len}"):
+        merged["num_tokens"] = merged["max_len"]
+        print(f"[CONFIG] Set num_tokens={merged['num_tokens']} from max_len")
     
     return merged
 
@@ -192,17 +215,17 @@ def load_model_with_problora(config, verbose=False):
     # Inject ProbLoRA with numerical stability parameters
     model = inject_problora_llama(
         model,
-        rank=config["rank"],
-        num_tokens=config["max_len"],
-        ard_prior_samples=config["ard_prior_samples"],
-        logvar_clamp_min=config["logvar_clamp_min"],
-        logvar_clamp_max=config["logvar_clamp_max"],
-        beta_logvar_clamp_min=config["beta_logvar_clamp_min"],
-        beta_logvar_clamp_max=config["beta_logvar_clamp_max"],
-        sample_clamp_min=config["sample_clamp_min"],
-        sample_clamp_max=config["sample_clamp_max"],
-        attn_implementation=config["attn_implementation"],
-        target_attention_layers=config["target_attention_layers"],  # Read from YAML config
+        rank=config.get("rank"),
+        num_tokens=config.get("max_len"),
+        ard_prior_samples=config.get("ard_prior_samples"),
+        logvar_clamp_min=config.get("logvar_clamp_min"),
+        logvar_clamp_max=config.get("logvar_clamp_max"),
+        beta_logvar_clamp_min=config.get("beta_logvar_clamp_min"),
+        beta_logvar_clamp_max=config.get("beta_logvar_clamp_max"),
+        sample_clamp_min=config.get("sample_clamp_min"),
+        sample_clamp_max=config.get("sample_clamp_max"),
+        attn_implementation=config.get("attn_implementation"),
+        target_attention_layers=config.get("target_attention_layers"),  # Read from YAML config
         deterministic=config.get("deterministic_lora"),  # Enable deterministic mode if configured
         enable_clamps=config.get("enable_clamps"),  # Enable/disable numerical stability clamps
         lora_alpha=config.get("lora_alpha"),  # Standard LoRA alpha parameter
