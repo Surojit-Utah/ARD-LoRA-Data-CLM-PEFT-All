@@ -203,26 +203,6 @@ class PredictionTracker:
             try:
                 example = dataset[idx]
                 
-                # Debug: Print example keys for first item
-                if idx == selected_indices[0]:
-                    print(f"[PredictionTracker] DEBUG: Example keys: {list(example.keys())}")
-                    if 'classes' in example:
-                        print(f"[PredictionTracker] DEBUG: classes = {example['classes']} (type: {type(example['classes'])})")
-                    if 'label' in example:
-                        print(f"[PredictionTracker] DEBUG: label = {example['label']} (type: {type(example['label'])})")
-                    if 'labels' in example:
-                        labels_field = example['labels']
-                        print(f"[PredictionTracker] DEBUG: labels = {labels_field}")
-                        print(f"[PredictionTracker] DEBUG: labels type = {type(labels_field)}")
-                        if isinstance(labels_field, torch.Tensor):
-                            print(f"[PredictionTracker] DEBUG: labels shape = {labels_field.shape}")
-                            print(f"[PredictionTracker] DEBUG: labels dim = {labels_field.dim()}")
-                            print(f"[PredictionTracker] DEBUG: labels content = {labels_field}")
-                        elif isinstance(labels_field, list):
-                            print(f"[PredictionTracker] DEBUG: labels length = {len(labels_field)}")
-                            if len(labels_field) > 0:
-                                print(f"[PredictionTracker] DEBUG: labels sample = {labels_field[:min(10, len(labels_field))]}")
-                
                 # Decode text for human readability
                 input_ids = example.get('input_ids', [])
                 if isinstance(input_ids, torch.Tensor):
@@ -277,11 +257,6 @@ class PredictionTracker:
                                 class_idx = int(last_val)
                             elif isinstance(last_val, torch.Tensor):
                                 class_idx = last_val.item()
-                
-                if idx == selected_indices[0]:
-                    print(f"[PredictionTracker] DEBUG: Final class_idx = {class_idx}")
-                    print(f"[PredictionTracker] DEBUG: Labels = {self.labels}")
-                    print(f"[PredictionTracker] DEBUG: Answer choice = {self.labels[class_idx] if 0 <= class_idx < len(self.labels) else 'Unknown'}")
                 
                 # Store example information
                 example_dict = {
@@ -867,9 +842,9 @@ class PredictionTracker:
                     # Show training label
                     f.write(f"  Training Label: {example.get('answer_choice', 'Unknown')}\n")
                     
-                    # Show truncated processed text
-                    text = example.get('text', '')[:150]
-                    f.write(f"  Processed Text: {text}{'...' if len(example.get('text', '')) > 150 else ''}\n\n")
+                    # Show complete processed text
+                    text = example.get('text', '')
+                    f.write(f"  Processed Text: {text}\n\n")
             
             # Validation examples info
             if self.val_examples:
@@ -887,9 +862,9 @@ class PredictionTracker:
                     # Show training label
                     f.write(f"  Training Label: {example.get('answer_choice', 'Unknown')}\n")
                     
-                    # Show truncated processed text
-                    text = example.get('text', '')[:150]
-                    f.write(f"  Processed Text: {text}{'...' if len(example.get('text', '')) > 150 else ''}\n\n")
+                    # Show complete processed text
+                    text = example.get('text', '')
+                    f.write(f"  Processed Text: {text}\n\n")
         
         print(f"[PredictionTracker] Saved example selection info to: {info_file}")
     
