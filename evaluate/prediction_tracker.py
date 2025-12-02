@@ -187,8 +187,8 @@ class PredictionTracker:
             print(f"[PredictionTracker] WARNING: n_examples={n_examples} > dataset size={total_size}, using {total_size}")
             n_examples = total_size
         
-        # Group examples by answer choice
-        answer_groups = {'A': [], 'B': [], 'C': [], 'D': []}
+        # Group examples by answer choice (using dynamic labels)
+        answer_groups = {label: [] for label in self.labels}
         
         # Sample a subset to analyze (for large datasets)
         total_size = len(dataset)
@@ -210,7 +210,8 @@ class PredictionTracker:
                 continue
         
         # Select balanced examples
-        examples_per_choice = max(1, n_examples // 4)  # Try to get ~2-3 per choice
+        num_choices = len(self.labels)
+        examples_per_choice = max(1, n_examples // num_choices)  # Distribute evenly across choices
         selected_indices = []
         
         for choice, indices in answer_groups.items():
@@ -299,7 +300,7 @@ class PredictionTracker:
                     'classes': class_idx,  # Use computed class index
                     'attention_mask': example.get('attention_mask', []),
                     'text': text,  # Processed prompt fed to model
-                    'answer_choice': chr(ord('A') + class_idx) if 0 <= class_idx <= 3 else 'Unknown'
+                    'answer_choice': self.labels[class_idx] if 0 <= class_idx < len(self.labels) else 'Unknown'
                 }
                 
                 # Add raw dataset information if available
@@ -320,7 +321,7 @@ class PredictionTracker:
     
     def _extract_answer_choice_from_example(self, example) -> str:
         """
-        Extract the correct answer choice (A/B/C/D) from an example.
+        Extract the correct answer choice from an example.
         
         Uses the actual class/label field that is used during training,
         NOT parsing from text.
@@ -329,28 +330,24 @@ class PredictionTracker:
             example: Dataset example
             
         Returns:
-            Answer choice letter or 'Unknown'
+            Answer choice string (e.g., 'A', 'B', 'True', 'False') or 'Unknown'
         """
         try:
-            # Method 1: Check for 'classes' field (used by ARCEasyDataset)
+            # Method 1: Check for 'classes' field (used by classification datasets)
             if 'classes' in example:
                 label_idx = example['classes']
-                if isinstance(label_idx, (int, np.integer)) and 0 <= label_idx <= 3:
-                    return chr(ord('A') + label_idx)  # 0->A, 1->B, 2->C, 3->D
-                elif isinstance(label_idx, torch.Tensor):
+                if isinstance(label_idx, torch.Tensor):
                     label_idx = label_idx.item()
-                    if 0 <= label_idx <= 3:
-                        return chr(ord('A') + label_idx)
+                if isinstance(label_idx, (int, np.integer)) and 0 <= label_idx < len(self.labels):
+                    return self.labels[label_idx]
             
             # Method 2: Check for 'label' field (generic datasets)
             if 'label' in example:
                 label_idx = example['label']
-                if isinstance(label_idx, (int, np.integer)) and 0 <= label_idx <= 3:
-                    return chr(ord('A') + label_idx)
-                elif isinstance(label_idx, torch.Tensor):
+                if isinstance(label_idx, torch.Tensor):
                     label_idx = label_idx.item()
-                    if 0 <= label_idx <= 3:
-                        return chr(ord('A') + label_idx)
+                if isinstance(label_idx, (int, np.integer)) and 0 <= label_idx < len(self.labels):
+                    return self.labels[label_idx]
             
             # If no label found, return Unknown
             return 'Unknown'
