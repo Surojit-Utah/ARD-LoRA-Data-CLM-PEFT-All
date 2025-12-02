@@ -54,6 +54,14 @@ class S2ClassDataset(DatasetBase):
             self.raw_dataset = load_dataset("ai2_arc", args.dataset)
         elif "winogrande" in args.dataset:
             self.raw_dataset = load_dataset("winogrande", args.dataset)
+            print("S2ClassDataset Debugging Info:")
+            print("[DEBUG] args.dataset:", self.args.dataset)
+            if "winogrande" in self.args.dataset:
+                print("[DEBUG] Using WinoGrande-specific tokenization branch.")
+            else:
+                print("[DEBUG] NOT using WinoGrande branch – this is a bug.")
+            input()
+
         else:
             self.raw_dataset = load_dataset(args.dataset)
 
@@ -142,7 +150,7 @@ class S2ClassDataset(DatasetBase):
             result["labels"] = [map_dict[label] for label in examples["answerKey"]]
         elif "winogrande" in self.args.dataset:
             texts = [
-                f"Select one of the choices that answers the following question: {question} Choices: A. {option1}. B {option2}. Answer:"
+                f"Select one of the choices that answers the following question: {question} Choices: A. {option1}. B. {option2}. Answer:"
                 for question, option1, option2 in zip(
                     examples["sentence"], examples["option1"], examples["option2"]
                 )
