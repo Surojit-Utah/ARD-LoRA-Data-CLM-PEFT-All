@@ -666,18 +666,6 @@ def main():
     print(f"       Predictions: {predictions_dir}")
     print(f"       Debug logs: {debug_log_dir}")
 
-    # Quick label sanity check on train_ds for WinoGrande
-    if "winogrande" in dataset_name:
-        ys = [int(x) for x in train_ds["labels"]]
-        print("[DEBUG] WinoGrande train label counts:", {k: ys.count(k) for k in set(ys)})
-
-    labels = ['A', 'B']       # class 0 → A, class 1 → B
-    target_ids = torch.tensor([
-        last_token_id(tokenizer, " A"),  # 319
-        last_token_id(tokenizer, " B"),  # 350
-    ])
-    input("Press Enter to continue...")
-
     trainer = create_trainer(model, tokenizer, train_ds, val_ds, config, model_ckpt_dir, target_ids, labels, tb_log_dir, predictions_dir, output_dir, debug_log_dir)
     # Dropout and grad norm settings of Llama2
     print("TrainingArguments weight_decay:", trainer.args.weight_decay)
