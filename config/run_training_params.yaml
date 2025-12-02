@@ -95,7 +95,7 @@ defaults:
   # Run ID: 4 kl = 0.0. There was no training instability.
   # Run ID: 3 kl = 0.01. There was training instability.
   # Run ID : 7 kl = 0.01 W/ tracking of the logvar features to understand the training instability.
-  kl_loss_beta: 0.01  # Target β_max for KL loss (reached after warmup)
+  kl_loss_beta: 0.0001  # Target β_max for KL loss (reached after warmup)
   
   # KL Loss Warmup Configuration
   enable_kl_warmup: false  # Enable linear KL warmup: β(t) = min(1, t/T_warmup) * β_max
