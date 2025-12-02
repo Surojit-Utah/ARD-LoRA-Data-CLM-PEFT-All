@@ -22,7 +22,7 @@ defaults:
   use_google_drive: true  # Enable Google Drive caching
   
   # Training hyperparameters (adapted from BayesianPEFT recipe for ARC-Easy)
-  learning_rate: 1.0e-04  # BayesianPEFT uses 1e-4 for classification tasks
+  learning_rate: 1.0e-05  # BayesianPEFT uses 1e-4 for classification tasks
   lr_scheduler_type: "linear" #"cosine" # "linear"  # BayesianPEFT uses linear scheduler
   warmup_ratio: 0.06  # BayesianPEFT uses 0.06 warmup ratio
   weight_decay: 0.0 # 1e-03
