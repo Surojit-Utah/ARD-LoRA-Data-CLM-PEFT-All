@@ -569,21 +569,29 @@ def main():
         train_ds = dataset.train_dataloader.dataset
         val_ds = dataset.test_dataloader.dataset  # They call it test_dataloader
         
-        # Get target_ids for answer tokens (A, B, C, D)
-        # For ARC-Easy and ARC-Challenge: map_dict = {"A": 0, "B": 1, "C": 2, "D": 3}
-        # We need the token IDs for " A", " B", " C", " D"
-        # CRITICAL: Use [-1] to get LAST token (the letter), not [0] (the space)
+        # Get target_ids for answer tokens based on num_classes
+        # CRITICAL: Use [-1] to get LAST token (the letter/number), not [0] (the space)
         def last_token_id(tok, s: str) -> int:
             """Extract last token ID from a string (safe for multi-piece tokens)."""
             ids = tok.encode(s, add_special_tokens=False)
             return ids[-1]  # safe even if multi-piece
         
-        target_ids = torch.tensor([
-            last_token_id(tokenizer, " A"),
-            last_token_id(tokenizer, " B"),
-            last_token_id(tokenizer, " C"),
-            last_token_id(tokenizer, " D"),
-        ])
+        # Build target_ids based on num_classes in config
+        num_classes = config.get('num_classes')  # Default to 4 if not specified
+        
+        # For multi-choice: A, B, C, D, E, ...
+        # For binary: 1, 2 (or sometimes A, B depending on dataset)
+        if num_classes <= 5:
+            # Use letters for small number of classes (typical MCQ format)
+            labels = [chr(ord('A') + i) for i in range(num_classes)]
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        else:
+            # Use numbers for larger number of classes
+            labels = [str(i+1) for i in range(num_classes)]
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        
+        print(f"[INFO] Number of classes: {num_classes}")
+        print(f"[INFO] Answer labels: {labels}")
         
         # Validate tokenizer consistency after dataset loading
         print(f"[TOKENIZER] Post-dataset loading validation:")
@@ -600,9 +608,9 @@ def main():
         
         # Sanity check: print label mappings with token representations
         print(f"[TOKENIZER] Label token mappings:")
-        for label, tid in zip([" A", " B", " C", " D"], target_ids.tolist()):
+        for label, tid in zip(labels, target_ids.tolist()):
             token_str = tokenizer.convert_ids_to_tokens(tid)
-            print(f"[TOKENIZER]   {repr(label)} -> id={tid}, tok={repr(token_str)}")
+            print(f"[TOKENIZER]   {repr(' ' + label)} -> id={tid}, tok={repr(token_str)}")
         
         # Check validation dataset size for ARD prior estimation
         val_size = len(val_ds)
