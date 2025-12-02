@@ -54,14 +54,6 @@ class S2ClassDataset(DatasetBase):
             self.raw_dataset = load_dataset("ai2_arc", args.dataset)
         elif "winogrande" in args.dataset:
             self.raw_dataset = load_dataset("winogrande", args.dataset)
-            print("S2ClassDataset Debugging Info:")
-            print("[DEBUG] args.dataset:", self.args.dataset)
-            if "winogrande" in self.args.dataset:
-                print("[DEBUG] Using WinoGrande-specific tokenization branch.")
-            else:
-                print("[DEBUG] NOT using WinoGrande branch – this is a bug.")
-            input()
-
         else:
             self.raw_dataset = load_dataset(args.dataset)
 
