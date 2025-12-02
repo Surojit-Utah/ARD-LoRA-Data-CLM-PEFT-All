@@ -141,24 +141,107 @@ class PredictionTracker:
             # For ARC-Easy: Try to get balanced answer choices
             return self._select_arc_easy_balanced(dataset, n_examples, split_name)
         else:
-            # For other datasets: Random selection
-            indices = random.sample(range(total_size), min(n_examples, total_size))
-            examples = []
+            # For other datasets: Balanced selection by answer choice
+            return self._select_generic_balanced(dataset, n_examples, split_name)
+    
+    def _select_generic_balanced(self, dataset, n_examples: int, split_name: str) -> Tuple[List[int], List[Dict]]:
+        """
+        Select examples with balanced answer choices for non-ARC datasets.
+        
+        Args:
+            dataset: Dataset to select from
+            n_examples: Number of examples to select
+            split_name: Name of split for logging
             
-            for idx in indices:
-                try:
-                    example = dataset[idx]
-                    examples.append({
-                        'index': idx,
-                        'input_ids': example.get('input_ids', []),
-                        'labels': example.get('labels', []),
-                        'attention_mask': example.get('attention_mask', [])
-                    })
-                except Exception as e:
-                    print(f"[PredictionTracker] Error accessing {split_name}[{idx}]: {e}")
-                    continue
-            
-            return indices, examples
+        Returns:
+            (indices, examples): Selected indices and example data
+        """
+        total_size = len(dataset)
+        
+        # Group examples by answer choice
+        answer_groups = {label: [] for label in self.labels}
+        
+        # Sample a subset to analyze
+        sample_size = min(1000, total_size)
+        sample_indices = random.sample(range(total_size), sample_size)
+        
+        for idx in sample_indices:
+            try:
+                example = dataset[idx]
+                answer_choice = self._extract_answer_choice_from_example(example)
+                
+                if answer_choice in answer_groups:
+                    answer_groups[answer_choice].append(idx)
+            except Exception as e:
+                print(f"[PredictionTracker] Error analyzing {split_name}[{idx}]: {e}")
+                continue
+        
+        # Select balanced examples
+        num_choices = len(self.labels)
+        examples_per_choice = max(1, n_examples // num_choices)
+        selected_indices = []
+        
+        for choice, indices in answer_groups.items():
+            if indices:
+                n_select = min(examples_per_choice, len(indices))
+                selected = random.sample(indices, n_select)
+                selected_indices.extend(selected)
+                print(f"[PredictionTracker] {split_name}: Selected {n_select} examples with answer {choice}")
+        
+        # Fill remaining slots with random examples if needed
+        while len(selected_indices) < n_examples and len(selected_indices) < total_size:
+            remaining_indices = [i for i in range(total_size) if i not in selected_indices]
+            if remaining_indices:
+                selected_indices.append(random.choice(remaining_indices))
+        
+        # Limit to requested number
+        selected_indices = selected_indices[:n_examples]
+        
+        # Get the actual examples
+        examples = []
+        for idx in selected_indices:
+            try:
+                example = dataset[idx]
+                
+                # Decode text for human readability
+                input_ids = example.get('input_ids', [])
+                if isinstance(input_ids, torch.Tensor):
+                    text = self.tokenizer.decode(input_ids, skip_special_tokens=True)
+                elif isinstance(input_ids, list) and len(input_ids) > 0:
+                    text = self.tokenizer.decode(input_ids, skip_special_tokens=True)
+                else:
+                    text = ""
+                
+                # Extract class index
+                class_idx = -1
+                if 'classes' in example:
+                    class_idx = example['classes']
+                    if isinstance(class_idx, torch.Tensor):
+                        class_idx = class_idx.item()
+                elif 'label' in example:
+                    class_idx = example['label']
+                    if isinstance(class_idx, torch.Tensor):
+                        class_idx = class_idx.item()
+                
+                # Store example information
+                example_dict = {
+                    'index': idx,
+                    'input_ids': input_ids,
+                    'labels': example.get('labels', []),
+                    'classes': class_idx,
+                    'attention_mask': example.get('attention_mask', []),
+                    'text': text,
+                    'answer_choice': self.labels[class_idx] if 0 <= class_idx < len(self.labels) else 'Unknown'
+                }
+                
+                examples.append(example_dict)
+            except Exception as e:
+                print(f"[PredictionTracker] Error processing {split_name}[{idx}]: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+        
+        return selected_indices, examples
     
     def _select_arc_easy_balanced(self, dataset, n_examples: int, split_name: str) -> Tuple[List[int], List[Dict]]:
         """
