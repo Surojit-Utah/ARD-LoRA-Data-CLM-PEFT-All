@@ -46,7 +46,7 @@ defaults:
   group_by_length: true  # Group samples by length for efficiency
   
   # Optimization
-  max_grad_norm: 0.1  # 0.1 Much more aggressive clipping to prevent instability
+  max_grad_norm: 1.0  # Increase from 0.1 to 1.0 to allow larger gradients (0.1 was too aggressive!)
   optim: "adamw_torch"
   gradient_checkpointing: true
   use_cache: false  # Disable KV caching during training to save memory
