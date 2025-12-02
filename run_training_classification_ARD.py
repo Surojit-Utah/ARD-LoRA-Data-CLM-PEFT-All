@@ -503,10 +503,12 @@ def main():
         # Create a simple args object for S2ClassDataset
         class DatasetArgs:
             def __init__(self, config):
-                # BayesianPEFT expects "ARC-Easy" not "arc_easy"
+                # BayesianPEFT expects "ARC-Easy" and "ARC-Challenge" not "arc_easy" or "arc_challenge"
                 dataset_name = config["dataset_name_specific"]
                 if dataset_name.lower() == "arc_easy" or dataset_name.lower() == "arc-easy":
                     self.dataset = "ARC-Easy"
+                elif dataset_name.lower() == "arc_challenge" or dataset_name.lower() == "arc-challenge":
+                    self.dataset = "ARC-Challenge"
                 else:
                     self.dataset = dataset_name
                 
