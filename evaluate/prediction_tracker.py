@@ -245,7 +245,11 @@ class PredictionTracker:
                 elif 'labels' in example:
                     # 'labels' field may contain the actual training label
                     labels_field = example['labels']
-                    if isinstance(labels_field, torch.Tensor):
+                    
+                    # Handle plain integer (most common for classification)
+                    if isinstance(labels_field, (int, np.integer)):
+                        class_idx = int(labels_field)
+                    elif isinstance(labels_field, torch.Tensor):
                         # For classification, labels is typically a single value or sequence
                         # Try to get the last non-padding label
                         if labels_field.dim() == 0:  # Scalar tensor
@@ -491,7 +495,13 @@ class PredictionTracker:
             # Method 3: Check for 'labels' field (actual training labels)
             if 'labels' in example:
                 labels_field = example['labels']
-                if isinstance(labels_field, torch.Tensor):
+                
+                # Handle plain integer (most common)
+                if isinstance(labels_field, (int, np.integer)):
+                    label_idx = int(labels_field)
+                    if 0 <= label_idx < len(self.labels):
+                        return self.labels[label_idx]
+                elif isinstance(labels_field, torch.Tensor):
                     if labels_field.dim() == 0:
                         label_idx = labels_field.item()
                     elif labels_field.dim() == 1:
