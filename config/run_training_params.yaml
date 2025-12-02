@@ -12,7 +12,7 @@ defaults:
   
   # Classification-specific configuration (NEW for ARC-Easy)
   task_mode: "classification"  # Enable classification mode (last-token prediction)
-  num_classes: 2  # Number of answer choices for ARC-Easy (A, B, C, D) - filtered to 4-choice questions
+  num_classes: 4  # Number of answer choices for ARC-Challenge (A, B, C, D) - 4 choices
   add_space_to_answers: true  # Add leading space to answer tokens (CRITICAL for tokenization!)
   few_shot_prompting: false  # Use zero-shot prompting (following BayesianPEFT)
   
