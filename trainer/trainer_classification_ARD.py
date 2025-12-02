@@ -263,13 +263,6 @@ class ARDClassificationTrainer(ResamplingTrainer):
             classes = inputs.pop("labels")
         else:
             raise ValueError("Classification trainer requires 'classes' or 'labels' in inputs")
-        
-        print("Compute loss")
-        for i in range(batch_size):
-            gt_class_idx = classes[i].item()
-            gt_token_id = target_ids_device[gt_class_idx].item()
-            print("GT:", gt_class_idx, self.tokenizer.decode([gt_token_id]))
-        input("Press Enter to continue...")
 
         # CRITICAL: Verify model is in training mode
         if not hasattr(self, '_training_mode_checked'):
