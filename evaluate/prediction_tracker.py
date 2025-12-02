@@ -210,6 +210,18 @@ class PredictionTracker:
                         print(f"[PredictionTracker] DEBUG: classes = {example['classes']} (type: {type(example['classes'])})")
                     if 'label' in example:
                         print(f"[PredictionTracker] DEBUG: label = {example['label']} (type: {type(example['label'])})")
+                    if 'labels' in example:
+                        labels_field = example['labels']
+                        print(f"[PredictionTracker] DEBUG: labels = {labels_field}")
+                        print(f"[PredictionTracker] DEBUG: labels type = {type(labels_field)}")
+                        if isinstance(labels_field, torch.Tensor):
+                            print(f"[PredictionTracker] DEBUG: labels shape = {labels_field.shape}")
+                            print(f"[PredictionTracker] DEBUG: labels dim = {labels_field.dim()}")
+                            print(f"[PredictionTracker] DEBUG: labels content = {labels_field}")
+                        elif isinstance(labels_field, list):
+                            print(f"[PredictionTracker] DEBUG: labels length = {len(labels_field)}")
+                            if len(labels_field) > 0:
+                                print(f"[PredictionTracker] DEBUG: labels sample = {labels_field[:min(10, len(labels_field))]}")
                 
                 # Decode text for human readability
                 input_ids = example.get('input_ids', [])
@@ -243,13 +255,24 @@ class PredictionTracker:
                             valid_labels = labels_field[labels_field != -100]
                             if len(valid_labels) > 0:
                                 class_idx = valid_labels[-1].item()
+                        elif labels_field.dim() > 1:
+                            # Multi-dimensional - flatten and get last valid
+                            flat_labels = labels_field.flatten()
+                            valid_labels = flat_labels[flat_labels != -100]
+                            if len(valid_labels) > 0:
+                                class_idx = valid_labels[-1].item()
                     elif isinstance(labels_field, (list, np.ndarray)):
-                        # List or array of labels
-                        if len(labels_field) > 0:
-                            if isinstance(labels_field[-1], (int, np.integer)):
-                                class_idx = labels_field[-1]
-                            elif isinstance(labels_field[-1], torch.Tensor):
-                                class_idx = labels_field[-1].item()
+                        # List or array of labels - find last non -100 value
+                        if isinstance(labels_field, list):
+                            valid = [l for l in labels_field if l != -100]
+                        else:
+                            valid = labels_field[labels_field != -100]
+                        if len(valid) > 0:
+                            last_val = valid[-1]
+                            if isinstance(last_val, (int, np.integer)):
+                                class_idx = int(last_val)
+                            elif isinstance(last_val, torch.Tensor):
+                                class_idx = last_val.item()
                 
                 if idx == selected_indices[0]:
                     print(f"[PredictionTracker] DEBUG: Final class_idx = {class_idx}")
