@@ -7,12 +7,12 @@ defaults:
   tokenizer_name: null  # Use model tokenizer
   train_type: "classification"  # Changed to "classification" for last-token prediction mode
   attn_implementation: "flash_attention_2"  # Use Flash Attention 2 for better memory efficiency
-  dataset_name: "arc_challenge"  # Dataset name for prediction tracking
-  dataset_name_specific: "arc_challenge"  # Which specific dataset from Bayesian-PEFT
+  dataset_name: "winogrande_s"  # Dataset name for prediction tracking
+  dataset_name_specific: "winogrande_s"  # Which specific dataset from Bayesian-PEFT
   
   # Classification-specific configuration (NEW for ARC-Easy)
   task_mode: "classification"  # Enable classification mode (last-token prediction)
-  num_classes: 4  # Number of answer choices for ARC-Easy (A, B, C, D) - filtered to 4-choice questions
+  num_classes: 2  # Number of answer choices for ARC-Easy (A, B, C, D) - filtered to 4-choice questions
   add_space_to_answers: true  # Add leading space to answer tokens (CRITICAL for tokenization!)
   few_shot_prompting: false  # Use zero-shot prompting (following BayesianPEFT)
   
@@ -111,13 +111,13 @@ defaults:
   uncertainty_n_bins: 15
   
   # Dataset Configuration - Global Settings
-  max_len: 512  # BayesianPEFT uses 512 for ARC-Easy
-  num_labels: 4  # 4 for classification (A, B, C, D) - filtered dataset
-  validation_split_ratio: 0.1  # Use 10% of training data for validation (for ARD and tracking)
-  random_seed: 42
-  max_validation_samples: null  # No cap, use full validation set
-  max_train_steps: 0  # Set to 0 to use epoch-based training instead of step-based
-  eval_per_steps: null  # Evaluate per epoch instead of per steps
+  # max_len: 512  # BayesianPEFT uses 512 for ARC-Easy
+  # num_labels: 4  # 4 for classification (A, B, C, D) - filtered dataset
+  # validation_split_ratio: 0.1  # Use 10% of training data for validation (for ARD and tracking)
+  # random_seed: 42
+  # max_validation_samples: null  # No cap, use full validation set
+  # max_train_steps: 0  # Set to 0 to use epoch-based training instead of step-based
+  # eval_per_steps: null  # Evaluate per epoch instead of per steps
   
   # Callback Configuration - ENABLED FOR FULL ARD FUNCTIONALITY
   enable_callbacks: true   # Enable ARD callbacks for proper ARD training
@@ -225,24 +225,30 @@ datasets:
       random_seed: 42
 
     winogrande_s:
-      dataset_name: "winogrande"         # same base dataset
+      dataset_name: "winogrande_s"         # same base dataset
       dataset_class: "S2ClassDataset"
       subset: "small"                    # distinguish WG-S
-      max_len: 300
+      max_len: 128
       num_labels: 2
       validation_split_ratio: 0.1
       max_ard_ratio: 0.8
       random_seed: 42
+      add_space_to_answers: true  # REQUIRED - Add leading space to answer tokens
+      few_shot_prompting: false  # Same as arc_easy (zero-shot)
+      task_mode: "classification"  # REQUIRED - Enable classification mode
 
     winogrande_m:
-      dataset_name: "winogrande"         # same base dataset
+      dataset_name: "winogrande_m"         # same base dataset
       dataset_class: "S2ClassDataset"
       subset: "medium"                   # distinguish WG-M
-      max_len: 300
+      max_len: 128
       num_labels: 2
       validation_split_ratio: 0.1
       max_ard_ratio: 0.8
       random_seed: 42
+      add_space_to_answers: true  # REQUIRED - Add leading space to answer tokens
+      few_shot_prompting: false  # Same as arc_easy (zero-shot)
+      task_mode: "classification"  # REQUIRED - Enable classification mode
 
     # Out-of-distribution / NLI-style evaluation
     anli:
