@@ -203,6 +203,14 @@ class PredictionTracker:
             try:
                 example = dataset[idx]
                 
+                # Debug: Print example keys for first item
+                if idx == selected_indices[0]:
+                    print(f"[PredictionTracker] DEBUG: Example keys: {list(example.keys())}")
+                    if 'classes' in example:
+                        print(f"[PredictionTracker] DEBUG: classes = {example['classes']} (type: {type(example['classes'])})")
+                    if 'label' in example:
+                        print(f"[PredictionTracker] DEBUG: label = {example['label']} (type: {type(example['label'])})")
+                
                 # Decode text for human readability
                 input_ids = example.get('input_ids', [])
                 if isinstance(input_ids, torch.Tensor):
@@ -222,6 +230,31 @@ class PredictionTracker:
                     class_idx = example['label']
                     if isinstance(class_idx, torch.Tensor):
                         class_idx = class_idx.item()
+                elif 'labels' in example:
+                    # 'labels' field may contain the actual training label
+                    labels_field = example['labels']
+                    if isinstance(labels_field, torch.Tensor):
+                        # For classification, labels is typically a single value or sequence
+                        # Try to get the last non-padding label
+                        if labels_field.dim() == 0:  # Scalar tensor
+                            class_idx = labels_field.item()
+                        elif labels_field.dim() == 1:  # 1D tensor
+                            # Find last non-negative-100 value (padding token)
+                            valid_labels = labels_field[labels_field != -100]
+                            if len(valid_labels) > 0:
+                                class_idx = valid_labels[-1].item()
+                    elif isinstance(labels_field, (list, np.ndarray)):
+                        # List or array of labels
+                        if len(labels_field) > 0:
+                            if isinstance(labels_field[-1], (int, np.integer)):
+                                class_idx = labels_field[-1]
+                            elif isinstance(labels_field[-1], torch.Tensor):
+                                class_idx = labels_field[-1].item()
+                
+                if idx == selected_indices[0]:
+                    print(f"[PredictionTracker] DEBUG: Final class_idx = {class_idx}")
+                    print(f"[PredictionTracker] DEBUG: Labels = {self.labels}")
+                    print(f"[PredictionTracker] DEBUG: Answer choice = {self.labels[class_idx] if 0 <= class_idx < len(self.labels) else 'Unknown'}")
                 
                 # Store example information
                 example_dict = {
@@ -432,6 +465,23 @@ class PredictionTracker:
                 if isinstance(label_idx, (int, np.integer)) and 0 <= label_idx < len(self.labels):
                     return self.labels[label_idx]
             
+            # Method 3: Check for 'labels' field (actual training labels)
+            if 'labels' in example:
+                labels_field = example['labels']
+                if isinstance(labels_field, torch.Tensor):
+                    if labels_field.dim() == 0:
+                        label_idx = labels_field.item()
+                    elif labels_field.dim() == 1:
+                        valid_labels = labels_field[labels_field != -100]
+                        if len(valid_labels) > 0:
+                            label_idx = valid_labels[-1].item()
+                        else:
+                            return 'Unknown'
+                    else:
+                        return 'Unknown'
+                    if isinstance(label_idx, (int, np.integer)) and 0 <= label_idx < len(self.labels):
+                        return self.labels[label_idx]
+            
             # If no label found, return Unknown
             return 'Unknown'
             
@@ -560,6 +610,11 @@ class PredictionTracker:
                     choice_probs[choice] = probs[token_id].item()
                 else:
                     choice_probs[choice] = 0.0
+            
+            # Normalize probabilities to sum to 1.0 (100%) for display
+            total_prob = sum(choice_probs.values())
+            if total_prob > 0:
+                choice_probs = {k: v / total_prob for k, v in choice_probs.items()}
             
             # Get prediction
             if choice_probs:
