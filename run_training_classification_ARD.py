@@ -383,7 +383,7 @@ def load_model_with_problora(config, verbose=False):
     return model, tokenizer
 
 
-def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, target_ids, tb_log_dir=None, predictions_dir=None, latent_plot_dir=None, debug_log_dir=None):
+def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, target_ids, labels, tb_log_dir=None, predictions_dir=None, latent_plot_dir=None, debug_log_dir=None):
     """Create enhanced ARD-LoRA trainer with uncertainty evaluation and callbacks"""
     
     # Get ARD prior samples directly from config
@@ -434,7 +434,8 @@ def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, targe
         pred_tracker_params = {
             'predictions_dir': predictions_dir,
             'prediction_n_examples': config.get('prediction_n_examples'),
-            'dataset_name': config.get('dataset_name')
+            'dataset_name': config.get('dataset_name'),
+            'labels': labels  # Pass the dynamically generated labels (A,B for winogrande; True,False for boolq, etc.)
         }
     
     # Prepare plotting parameters from config
@@ -576,12 +577,20 @@ def main():
             ids = tok.encode(s, add_special_tokens=False)
             return ids[-1]  # safe even if multi-piece
         
-        # Build target_ids based on num_classes in config
+        # Build target_ids based on num_classes and dataset_name in config
         num_classes = config.get('num_classes')  # Default to 4 if not specified
+        dataset_name = config.get('dataset_name').lower()
         
-        # For multi-choice: A, B, C, D, E, ...
-        # For binary: 1, 2 (or sometimes A, B depending on dataset)
-        if num_classes <= 5:
+        # Dataset-specific label formats
+        if dataset_name == 'boolq':
+            # BoolQ uses True/False labels
+            labels = ['True', 'False']
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        elif dataset_name in ['winogrande_s', 'winogrande_m']:
+            # Winogrande uses A, B labels (binary choice)
+            labels = ['A', 'B']
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        elif num_classes <= 5:
             # Use letters for small number of classes (typical MCQ format)
             labels = [chr(ord('A') + i) for i in range(num_classes)]
             target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
@@ -657,7 +666,7 @@ def main():
     print(f"       Predictions: {predictions_dir}")
     print(f"       Debug logs: {debug_log_dir}")
 
-    trainer = create_trainer(model, tokenizer, train_ds, val_ds, config, model_ckpt_dir, target_ids, tb_log_dir, predictions_dir, output_dir, debug_log_dir)
+    trainer = create_trainer(model, tokenizer, train_ds, val_ds, config, model_ckpt_dir, target_ids, labels, tb_log_dir, predictions_dir, output_dir, debug_log_dir)
     # Dropout and grad norm settings of Llama2
     print("TrainingArguments weight_decay:", trainer.args.weight_decay)
     print("max_grad_norm:", trainer.args.max_grad_norm)

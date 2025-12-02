@@ -1260,14 +1260,16 @@ class PredictionTrackerCallback(TrainerCallback):
     """Callback to track predictions on fixed examples across epochs for interpretability."""
     
     def __init__(self, train_dataset, eval_dataset, predictions_dir, tokenizer, 
-                 n_examples=10, dataset_name="arc_easy"):
+                 n_examples=10, dataset_name="arc_easy", target_ids=None, labels=None):
         super().__init__()
         # Use the provided predictions directory directly
         self.prediction_tracker = PredictionTracker(
             output_dir=predictions_dir,  # Use standardized predictions directory
             tokenizer=tokenizer,
             n_examples=n_examples,
-            dataset_name=dataset_name
+            dataset_name=dataset_name,
+            target_ids=target_ids,
+            labels=labels
         )
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
@@ -1663,15 +1665,20 @@ def build_classification_trainer(
         n_examples = prediction_tracker_params.get('prediction_n_examples')
         dataset_name = prediction_tracker_params.get('dataset_name')
         
+        # Get labels from target_ids for dynamic choice handling
+        labels = prediction_tracker_params.get('labels', ['A', 'B', 'C', 'D'])  # Default to 4-choice
+        
         trainer.add_callback(PredictionTrackerCallback(
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             predictions_dir=predictions_dir,
             tokenizer=tokenizer,
             n_examples=n_examples,
-            dataset_name=dataset_name
+            dataset_name=dataset_name,
+            target_ids=target_ids,
+            labels=labels
         ))
-        print(f"[CLASSIFICATION] Added PredictionTrackerCallback (tracking {n_examples} examples)")
+        print(f"[CLASSIFICATION] Added PredictionTrackerCallback (tracking {n_examples} examples, labels={labels})")
     
     # Add plotting callback if enabled and utilities available
     if enable_plotting:

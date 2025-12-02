@@ -37,7 +37,9 @@ class PredictionTracker:
                  tokenizer,
                  n_examples: int = 10,
                  dataset_name: str = "arc_easy",
-                 seed: int = 42):
+                 seed: int = 42,
+                 target_ids = None,
+                 labels = None):
         """
         Initialize prediction tracker.
         
@@ -47,6 +49,8 @@ class PredictionTracker:
             n_examples: Number of examples to track per split
             dataset_name: Name of dataset for formatting
             seed: Random seed for reproducible example selection
+            target_ids: Tensor of target token IDs for answer choices
+            labels: List of label strings (e.g., ['A', 'B'] or ['True', 'False'])
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -55,6 +59,12 @@ class PredictionTracker:
         self.n_examples = n_examples
         self.dataset_name = dataset_name.lower()
         self.seed = seed
+        
+        # Store target_ids and labels for dynamic choice handling
+        self.target_ids = target_ids
+        self.labels = labels if labels is not None else ['A', 'B', 'C', 'D']  # Default to 4-choice
+        
+        print(f"[PredictionTracker] Initialized with labels: {self.labels}")
         
         # Fixed examples to track
         self.train_examples = []
@@ -454,7 +464,7 @@ class PredictionTracker:
             
             # Get answer choice token IDs
             choice_tokens = {}
-            for choice in ['A', 'B', 'C', 'D']:
+            for choice in self.labels:
                 # Try different formats
                 formats = [choice, f' {choice}', f'({choice})', f' ({choice})']
                 for fmt in formats:
@@ -645,7 +655,7 @@ class PredictionTracker:
         # Choice probabilities
         if 'choice_probabilities' in prediction and prediction['choice_probabilities']:
             f.write("\nAll Choice Probabilities:\n")
-            for choice in ['A', 'B', 'C', 'D']:
+            for choice in self.labels:
                 prob = prediction['choice_probabilities'].get(choice, 0.0)
                 marker = " ← PREDICTED" if choice == predicted else ""
                 correct_marker = " (CORRECT)" if choice == training_label_letter else ""
@@ -654,7 +664,7 @@ class PredictionTracker:
         # Token IDs used
         if 'choice_tokens' in prediction and prediction['choice_tokens']:
             f.write("\nAnswer Token IDs:\n")
-            for choice in ['A', 'B', 'C', 'D']:
+            for choice in self.labels:
                 token_id = prediction['choice_tokens'].get(choice, 'N/A')
                 f.write(f"  {choice}: {token_id}\n")
         
