@@ -314,6 +314,174 @@ def display_raw_example(example, label_type):
         print(f"  Label: {example['label']}")
 
 
+def deep_dive_single_example(dataset_key='winogrande_s', example_idx=0, tokenizer=None):
+    """
+    Deep dive into processing a single example to show complete transformation pipeline.
+    
+    Args:
+        dataset_key: Dataset to use (default: winogrande_s)
+        example_idx: Index of example to analyze (default: 0)
+        tokenizer: Tokenizer to use
+    """
+    print_section_header(f"DEEP DIVE: Single Example Processing")
+    
+    config = DATASET_CONFIGS[dataset_key]
+    
+    print(f"Dataset: {config['name']}")
+    print(f"Example Index: {example_idx}")
+    print()
+    
+    # Initialize dataset
+    print("STEP 1: Initialize Dataset")
+    print("-" * 70)
+    dataset_obj = config['class'](
+        tokenizer=tokenizer,
+        add_space=True,
+        **config['init_params']
+    )
+    print(f"✓ Dataset class: {config['class'].__name__}")
+    print(f"✓ Number of labels: {dataset_obj.n_labels}")
+    print(f"✓ Preamble template loaded")
+    print()
+    
+    # Show label to token mappings
+    print("STEP 2: Label-to-Token Mappings (created during __init__)")
+    print("-" * 70)
+    print("label2target dictionary:")
+    for label_idx, token_id in dataset_obj.label2target.items():
+        token_str = tokenizer.convert_ids_to_tokens(token_id.item())
+        token_text = tokenizer.decode(token_id)
+        print(f"  {label_idx} -> token_id={token_id.item()}, token={repr(token_str)}, decoded={repr(token_text)}")
+    print()
+    
+    # Get raw example
+    print("STEP 3: Get Raw Example from HuggingFace Dataset")
+    print("-" * 70)
+    raw_example = dataset_obj.dset['train'][example_idx]
+    print("Raw dictionary fields:")
+    for key, value in raw_example.items():
+        print(f"  {key}: {repr(value)}")
+    print()
+    
+    # Format prompt
+    print("STEP 4: Format Prompt (_format_prompts)")
+    print("-" * 70)
+    print("Building choices string:")
+    choices_str = f"A) {raw_example['option1']}\nB) {raw_example['option2']}"
+    print(f"  choices = 'A) {raw_example['option1']}\\nB) {raw_example['option2']}'")
+    print()
+    print("Filling preamble template:")
+    print(f"  preamble.format(question={repr(raw_example['sentence'])}, choices=...)")
+    print()
+    
+    formatted_prompts = dataset_obj._format_prompts([raw_example])
+    prompt_string = formatted_prompts[0]
+    
+    print("Resulting prompt string:")
+    print("  " + "─" * 66)
+    for line in prompt_string.split('\n'):
+        print(f"  {line}")
+    print("  " + "─" * 66)
+    print()
+    
+    # Tokenize
+    print("STEP 5: Tokenize Prompt (_tokenize_prompts)")
+    print("-" * 70)
+    tokenized = dataset_obj._tokenize_prompts(formatted_prompts)
+    input_ids = tokenized['input_ids'][0]
+    attention_mask = tokenized['attention_mask'][0]
+    
+    print(f"Input IDs shape: {input_ids.shape}")
+    print(f"Input IDs tensor: {input_ids}")
+    print()
+    print(f"Attention mask: {attention_mask}")
+    print()
+    print("Token-by-token breakdown (first 20 tokens):")
+    for i, token_id in enumerate(input_ids[:20].tolist()):
+        token_str = tokenizer.convert_ids_to_tokens(token_id)
+        print(f"  Position {i:2d}: id={token_id:5d}, token={repr(token_str):15s}")
+    print(f"  ... ({len(input_ids)} tokens total)")
+    print()
+    print("Last 5 tokens (should end with 'Answer:'):")
+    for i, token_id in enumerate(input_ids[-5:].tolist(), start=len(input_ids)-5):
+        token_str = tokenizer.convert_ids_to_tokens(token_id)
+        print(f"  Position {i:2d}: id={token_id:5d}, token={repr(token_str):15s}")
+    print()
+    
+    # Extract class
+    print("STEP 6: Extract Class Index (from answer field)")
+    print("-" * 70)
+    answer_raw = raw_example['answer']
+    print(f"Raw answer field: {repr(answer_raw)} (type: {type(answer_raw).__name__})")
+    print(f"Convert to int: int('{answer_raw}') = {int(answer_raw)}")
+    print(f"Subtract 1 for zero-indexing: {int(answer_raw)} - 1 = {int(answer_raw) - 1}")
+    
+    class_idx = int(answer_raw) - 1
+    print(f"Final class index: {class_idx}")
+    print()
+    
+    if class_idx == 0:
+        print(f"  → This means option A ('{raw_example['option1']}') is correct")
+    else:
+        print(f"  → This means option B ('{raw_example['option2']}') is correct")
+    print()
+    
+    # Map to target
+    print("STEP 7: Map Class Index to Target Token ID")
+    print("-" * 70)
+    print(f"Looking up label2target[{class_idx}]:")
+    target_tensor = dataset_obj.label2target[class_idx]
+    target_id = target_tensor.item()
+    print(f"  label2target[{class_idx}] = tensor([[{target_id}]])")
+    print()
+    print(f"Target token ID: {target_id}")
+    print(f"Target token (raw): {repr(tokenizer.convert_ids_to_tokens(target_id))}")
+    print(f"Target token (decoded): {repr(tokenizer.decode([target_id]))}")
+    print()
+    
+    # Complete collate_fn
+    print("STEP 8: Complete clm_collate_fn Processing")
+    print("-" * 70)
+    batch = [raw_example]
+    prompts, classes, targets = dataset_obj.clm_collate_fn(batch)
+    
+    print("Return values from clm_collate_fn:")
+    print()
+    print("1. prompts (dict):")
+    print(f"   input_ids shape: {prompts['input_ids'].shape}")
+    print(f"   attention_mask shape: {prompts['attention_mask'].shape}")
+    print()
+    print("2. classes (tensor):")
+    print(f"   {classes}")
+    print(f"   Value: {classes[0].item()}")
+    print()
+    print("3. targets (tensor):")
+    print(f"   {targets}")
+    print(f"   Value: {targets[0].item()}")
+    print()
+    
+    # Model prediction scenario
+    print("STEP 9: What the Model Does")
+    print("-" * 70)
+    print("The model receives:")
+    print(f"  - input_ids ending with 'Answer:' (last token ID: {input_ids[-1].item()})")
+    print(f"  - attention_mask (all 1s for this example)")
+    print()
+    print("The model should predict:")
+    print(f"  - Next token after 'Answer:' should be token {target_id}")
+    print(f"  - This decodes to {repr(tokenizer.decode([target_id]))}")
+    print(f"  - Which represents class {class_idx} ({'A' if class_idx == 0 else 'B'})")
+    print()
+    print("Loss computation:")
+    print(f"  - Model outputs logits for all {tokenizer.vocab_size} vocabulary tokens")
+    print(f"  - We only care about logits for answer tokens: {list(dataset_obj.label2target.values())}")
+    print(f"  - Cross-entropy loss compares predicted distribution vs ground truth class {class_idx}")
+    print()
+    
+    print_separator("=")
+    print()
+    
+    
 def main():
     """Main function to run dataset sampling tests."""
     parser = argparse.ArgumentParser(
@@ -350,7 +518,19 @@ def main():
         default=None,
         help='Output file to save results (default: print to stdout)'
     )
-    
+
+    parser.add_argument(
+        '--deep-dive',
+        action='store_true',
+        help='Run deep dive analysis on a single example'
+    )
+    parser.add_argument(
+        '--example-idx',
+        type=int,
+        default=0,
+        help='Index of example for deep dive (default: 0)'
+    )
+
     args = parser.parse_args()
     
     # Determine which datasets to sample
@@ -366,8 +546,11 @@ def main():
     print_separator("=")
     print()
     print(f"Model/Tokenizer: {args.model}")
-    print(f"Datasets: {', '.join(datasets_to_sample)}")
-    print(f"Samples per split: {args.n_samples}")
+    if not args.deep_dive:
+        print(f"Datasets: {', '.join(datasets_to_sample)}")
+        print(f"Samples per split: {args.n_samples}")
+    else:
+        print(f"Mode: Deep dive on winogrande_s example {args.example_idx}")
     print(f"Random seed: {args.seed}")
     print()
     
@@ -386,6 +569,15 @@ def main():
     except Exception as e:
         print(f"✗ Error loading tokenizer: {e}")
         return 1
+    
+    # Deep dive if requested
+    if args.deep_dive:
+        deep_dive_single_example(
+            dataset_key='winogrande_s',
+            example_idx=args.example_idx,
+            tokenizer=tokenizer
+        )
+        return 0
     
     # Redirect output if specified
     original_stdout = sys.stdout

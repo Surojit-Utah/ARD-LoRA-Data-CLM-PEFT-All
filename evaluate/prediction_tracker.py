@@ -840,10 +840,13 @@ class PredictionTracker:
                         f.write(f"  Answer Key: {example.get('raw_answerKey', 'Unknown')}\n")
                     
                     # Show training label
-                    f.write(f"  Training Label: {example.get('answer_choice', 'Unknown')}\n")
+                    answer_choice = example.get('answer_choice', 'Unknown')
+                    f.write(f"  Training Label: {answer_choice}\n")
                     
-                    # Show complete processed text
+                    # Show complete processed text with ground truth answer
                     text = example.get('text', '')
+                    if text.rstrip().endswith('Answer:'):
+                        text = text.rstrip() + f" {answer_choice}"
                     f.write(f"  Processed Text: {text}\n\n")
             
             # Validation examples info
@@ -860,10 +863,13 @@ class PredictionTracker:
                         f.write(f"  Answer Key: {example.get('raw_answerKey', 'Unknown')}\n")
                     
                     # Show training label
-                    f.write(f"  Training Label: {example.get('answer_choice', 'Unknown')}\n")
+                    answer_choice = example.get('answer_choice', 'Unknown')
+                    f.write(f"  Training Label: {answer_choice}\n")
                     
-                    # Show complete processed text
+                    # Show complete processed text with ground truth answer
                     text = example.get('text', '')
+                    if text.rstrip().endswith('Answer:'):
+                        text = text.rstrip() + f" {answer_choice}"
                     f.write(f"  Processed Text: {text}\n\n")
         
         print(f"[PredictionTracker] Saved example selection info to: {info_file}")

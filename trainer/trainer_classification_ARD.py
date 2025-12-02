@@ -138,10 +138,10 @@ class ARDClassificationTrainer(ResamplingTrainer):
         
         # KL Warmup Configuration
         self.kl_loss_beta_max = self.beta  # Store target β_max
-        self.enable_kl_warmup = config.get('enable_kl_warmup', False) if config is not None else False
-        self.kl_warmup_epochs = config.get('kl_warmup_epochs', 2) if config is not None else 2
-        self.kl_warmup_steps = config.get('kl_warmup_steps', None) if config is not None else None
-        
+        self.enable_kl_warmup = config.get('enable_kl_warmup')
+        self.kl_warmup_epochs = config.get('kl_warmup_epochs')
+        self.kl_warmup_steps = config.get('kl_warmup_steps')
+
         # Total warmup steps will be calculated after first dataloader is created
         self.total_warmup_steps = None
         self._warmup_steps_calculated = False
@@ -301,16 +301,116 @@ class ARDClassificationTrainer(ResamplingTrainer):
         loss_fct = nn.CrossEntropyLoss()
         ce_loss = loss_fct(filtered_logits, classes)
         
-        # Debug info (print once per epoch)
-        if not hasattr(self, '_debug_classification_printed'):
-            self._debug_classification_printed = True
-            print(f"\n[CLASSIFICATION LOSS DEBUG]:")
-            print(f"  Logits shape: {logits.shape}")
-            print(f"  Last token logits shape: {last_token_logits.shape}")
-            print(f"  Filtered logits shape: {filtered_logits.shape}")
-            print(f"  Classes shape: {classes.shape}")
-            print(f"  Classes: {classes.tolist()}")
-            print(f"  CE Loss: {ce_loss.item():.4f}")
+        # ===== DETAILED DEBUGGING: Verify predictions and GT tokens =====
+        # Track current step to print debug info periodically
+        current_step = self.state.global_step if hasattr(self, 'state') else 0
+        current_epoch = int(getattr(self.state, 'epoch', 0)) if hasattr(self, 'state') else 0
+        
+        # Initialize debug counter
+        if not hasattr(self, '_debug_step_counter'):
+            self._debug_step_counter = 0
+        
+        # Print detailed debug info every 50 steps (or first 3 steps of each epoch)
+        step_in_epoch = current_step % len(self.get_train_dataloader()) if hasattr(self, 'state') and len(self.get_train_dataloader()) > 0 else 0
+        should_debug = (step_in_epoch < 3) or (current_step % 50 == 0)
+        
+        if should_debug:
+            self._debug_step_counter += 1
+            
+            print(f"\n{'='*80}")
+            print(f"[LOGITS DEBUG] Step {current_step} (Epoch {current_epoch}, Step in Epoch: {step_in_epoch})")
+            print(f"{'='*80}")
+            
+            # 1. Show shapes
+            print(f"\n[SHAPE VERIFICATION]")
+            print(f"  Full logits shape: {logits.shape} (batch_size, seq_len, vocab_size)")
+            print(f"  Last token logits shape: {last_token_logits.shape} (batch_size, vocab_size)")
+            print(f"  Filtered logits shape: {filtered_logits.shape} (batch_size, num_classes={self.num_classes})")
+            print(f"  Ground truth classes shape: {classes.shape} (batch_size)")
+            
+            # 2. Show target token IDs and verify they correspond to answer tokens
+            print(f"\n[TARGET TOKEN VERIFICATION]")
+            print(f"  Number of classes: {self.num_classes}")
+            print(f"  Target token IDs: {target_ids_device.squeeze().tolist()}")
+            
+            # Get tokenizer to show what these tokens represent
+            if hasattr(self, 'tokenizer'):
+                token_strings = [self.tokenizer.decode([tid]) for tid in target_ids_device.squeeze().tolist()]
+                print(f"  Target tokens decoded: {token_strings}")
+                # Also show the tokens without decoding (raw token representation)
+                raw_tokens = [self.tokenizer.convert_ids_to_tokens(tid) for tid in target_ids_device.squeeze().tolist()]
+                print(f"  Target tokens (raw): {raw_tokens}")
+            
+            # 3. Show ground truth for first 5 examples in batch
+            batch_size = min(5, classes.shape[0])
+            print(f"\n[GROUND TRUTH VERIFICATION] (First {batch_size} examples)")
+            for i in range(batch_size):
+                gt_class_idx = classes[i].item()
+                gt_token_id = target_ids_device.squeeze()[gt_class_idx].item()
+                gt_token_str = self.tokenizer.decode([gt_token_id]) if hasattr(self, 'tokenizer') else f"token_{gt_token_id}"
+                print(f"  Example {i}: GT class index = {gt_class_idx}, GT token ID = {gt_token_id}, GT token = '{gt_token_str}'")
+            
+            # 4. Show model predictions (softmax over filtered logits)
+            with torch.no_grad():
+                probs = torch.softmax(filtered_logits, dim=-1)  # [batch_size, num_classes]
+                pred_classes = torch.argmax(probs, dim=-1)  # [batch_size]
+                
+                print(f"\n[MODEL PREDICTIONS] (First {batch_size} examples)")
+                for i in range(batch_size):
+                    gt_class_idx = classes[i].item()
+                    pred_class_idx = pred_classes[i].item()
+                    
+                    # Get token representations
+                    pred_token_id = target_ids_device.squeeze()[pred_class_idx].item()
+                    gt_token_id = target_ids_device.squeeze()[gt_class_idx].item()
+                    
+                    pred_token_str = self.tokenizer.decode([pred_token_id]) if hasattr(self, 'tokenizer') else f"token_{pred_token_id}"
+                    gt_token_str = self.tokenizer.decode([gt_token_id]) if hasattr(self, 'tokenizer') else f"token_{gt_token_id}"
+                    
+                    # Show probabilities for all classes
+                    prob_str = ", ".join([f"{p:.4f}" for p in probs[i].tolist()])
+                    
+                    correct = "✓" if pred_class_idx == gt_class_idx else "✗"
+                    print(f"  Example {i} {correct}:")
+                    print(f"    Probabilities: [{prob_str}]")
+                    print(f"    Predicted: class {pred_class_idx} (token '{pred_token_str}', id={pred_token_id})")
+                    print(f"    Ground Truth: class {gt_class_idx} (token '{gt_token_str}', id={gt_token_id})")
+                
+                # 5. Show batch accuracy
+                correct_predictions = (pred_classes == classes).sum().item()
+                batch_accuracy = correct_predictions / classes.shape[0]
+                print(f"\n[BATCH STATISTICS]")
+                print(f"  Correct predictions: {correct_predictions}/{classes.shape[0]}")
+                print(f"  Batch accuracy: {batch_accuracy:.4f}")
+                print(f"  CE Loss: {ce_loss.item():.6f}")
+            
+            # 6. Verify logit values are reasonable (not all same, not NaN/Inf)
+            print(f"\n[LOGIT SANITY CHECKS]")
+            print(f"  Filtered logits min: {filtered_logits.min().item():.4f}")
+            print(f"  Filtered logits max: {filtered_logits.max().item():.4f}")
+            print(f"  Filtered logits mean: {filtered_logits.mean().item():.4f}")
+            print(f"  Contains NaN: {torch.isnan(filtered_logits).any().item()}")
+            print(f"  Contains Inf: {torch.isinf(filtered_logits).any().item()}")
+            
+            # 7. Show full vocabulary logits statistics (before filtering)
+            print(f"\n[FULL VOCAB LOGITS] (Before filtering to answer tokens)")
+            print(f"  Last token logits min: {last_token_logits.min().item():.4f}")
+            print(f"  Last token logits max: {last_token_logits.max().item():.4f}")
+            print(f"  Last token logits mean: {last_token_logits.mean().item():.4f}")
+            
+            # 8. Compare logits at target positions vs other positions
+            with torch.no_grad():
+                # For first example, show top-5 logits across full vocab
+                first_example_logits = last_token_logits[0]  # [vocab_size]
+                top_vals, top_indices = torch.topk(first_example_logits, k=5)
+                
+                print(f"\n[TOP-5 LOGITS ACROSS FULL VOCAB] (Example 0)")
+                for rank, (val, idx) in enumerate(zip(top_vals.tolist(), top_indices.tolist())):
+                    token_str = self.tokenizer.decode([idx]) if hasattr(self, 'tokenizer') else f"token_{idx}"
+                    is_answer = "← ANSWER TOKEN" if idx in target_ids_device.squeeze().tolist() else ""
+                    print(f"  Rank {rank+1}: token '{token_str}' (id={idx}), logit={val:.4f} {is_answer}")
+            
+            print(f"{'='*80}\n")
         
         # ===== KL DIVERGENCE COMPUTATION (SAME AS CLM) =====
         
@@ -451,9 +551,6 @@ class ARDClassificationTrainer(ResamplingTrainer):
                 probe_params = all_probe_params
             
             mode_str = "probabilistic" if self.use_kl else "deterministic"
-            print(f"[GRAD-PROBE] monitoring {len(probe_params)} adapter params ({mode_str} mode)")
-            print(model.model.layers[0].self_attn.q_proj)
-            print(type(model.model.layers[0].self_attn.q_proj))
 
             # # CE-only
             # model.zero_grad(set_to_none=True)
@@ -468,9 +565,13 @@ class ARDClassificationTrainer(ResamplingTrainer):
             #     kl_g = [(None if p.grad is None else p.grad.detach().norm().item()) for p in probe_params]
             #     print(f"[GRAD-PROBE] KL-only grad norms (beta={self.beta}): {kl_g}")
 
-            print(f"[GRAD-PROBE] monitoring {len(probe_params)} adapter params:")
-            for i, (name, p) in enumerate(probe_params):
-                print(f"  [{i}] {name}  shape={tuple(p.shape)}")
+            if self.verbose:
+                print(f"[GRAD-PROBE] monitoring {len(probe_params)} adapter params ({mode_str} mode)")
+                print(model.model.layers[0].self_attn.q_proj)
+                print(type(model.model.layers[0].self_attn.q_proj))
+                print(f"[GRAD-PROBE] monitoring {len(probe_params)} adapter params:")
+                for i, (name, p) in enumerate(probe_params):
+                    print(f"  [{i}] {name}  shape={tuple(p.shape)}")
 
             # ---------- CE-only gradients ----------
             model.zero_grad(set_to_none=True)

@@ -23,9 +23,9 @@ defaults:
   
   # Training hyperparameters (adapted from BayesianPEFT recipe for ARC-Easy)
   learning_rate: 1.0e-04  # BayesianPEFT uses 1e-4 for classification tasks
-  lr_scheduler_type: "cosine" # "linear"  # BayesianPEFT uses linear scheduler
+  lr_scheduler_type: "linear" #"cosine" # "linear"  # BayesianPEFT uses linear scheduler
   warmup_ratio: 0.06  # BayesianPEFT uses 0.06 warmup ratio
-  weight_decay: 1e-03 # 0.0
+  weight_decay: 0.0 # 1e-03
   train_epochs: 10  # Increased to match BayesianPEFT (they use ~5000 steps)
   batch_size: 4  # BayesianPEFT uses batch_size=4 for classification
   gradient_accumulation_steps: 1  # No accumulation in BayesianPEFT baseline
@@ -46,7 +46,7 @@ defaults:
   group_by_length: true  # Group samples by length for efficiency
   
   # Optimization
-  max_grad_norm: 1.0  # 0.1 Much more aggressive clipping to prevent instability
+  max_grad_norm: 0.1  # 0.1 Much more aggressive clipping to prevent instability
   optim: "adamw_torch"
   gradient_checkpointing: true
   use_cache: false  # Disable KV caching during training to save memory
@@ -76,7 +76,7 @@ defaults:
   apply_lora_to_lm_head: false  # Optional: apply LoRA to output head
   
   # ProbLoRA Model Parameters
-  # num_tokens: Will be automatically set to max_len from dataset-specific config
+  num_tokens: ${max_len}  # Always match max_len for full sequence ARD coverage
   ard_prior_samples: 100  # Reduced from 100 to 25 for faster training
   
   # Numerical Stability Parameters - ULTRA CONSERVATIVE
@@ -98,7 +98,7 @@ defaults:
   kl_loss_beta: 0.01  # Target β_max for KL loss (reached after warmup)
   
   # KL Loss Warmup Configuration
-  enable_kl_warmup: true  # Enable linear KL warmup: β(t) = min(1, t/T_warmup) * β_max
+  enable_kl_warmup: false  # Enable linear KL warmup: β(t) = min(1, t/T_warmup) * β_max
   kl_warmup_epochs: 2  # Number of epochs for KL warmup (usually 1-3 epochs)
   kl_warmup_steps: null  # Alternative: specify warmup in steps instead of epochs (null = use epochs)
   
