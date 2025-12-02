@@ -545,7 +545,7 @@ def main():
         val_ds = dataset.test_dataloader.dataset  # They call it test_dataloader
         
         # Get target_ids for answer tokens (A, B, C, D)
-        # For ARC-Easy: map_dict = {"A": 0, "B": 1, "C": 2, "D": 3}
+        # For ARC-Easy and ARC-Challenge: map_dict = {"A": 0, "B": 1, "C": 2, "D": 3}
         # We need the token IDs for " A", " B", " C", " D"
         # CRITICAL: Use [-1] to get LAST token (the letter), not [0] (the space)
         def last_token_id(tok, s: str) -> int:
@@ -599,13 +599,15 @@ def main():
     # Setup training
     print(f"\n[STEP 3] Setting up ARD-LoRA training...")
     
-    # Create run-specific base directory with deterministic/probabilistic mode
+    # Create run-specific base directory with deterministic/probabilistic mode and dataset name
     model_mode = "deterministic" if config.get('deterministic_lora', True) else "probabilistic"
     model_name_clean = config.get('model_name').replace('/', '_')
+    eval_dataset_name = config.get('dataset_name_specific', dataset_name)  # Get evaluation dataset name from config
     base_output_dir = f"{model_name_clean}_ARD_LoRA_Classification_{dataset_name}_{model_mode}"
     os.makedirs(base_output_dir, exist_ok=True)
     
     print(f"[INFO] Training mode: {model_mode.upper()}")
+    print(f"[INFO] Evaluation dataset: {dataset_name}")
     print(f"[INFO] Base output directory: {base_output_dir}")
     
     # Get run-specific directories
