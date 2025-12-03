@@ -599,7 +599,7 @@ def main():
     os.makedirs(base_output_dir, exist_ok=True)
     
     # Get run-specific directories
-    output_dir, model_ckpt_dir, tb_log_dir, predictions_dir = get_output_dirs(
+    output_dir, model_ckpt_dir, tb_log_dir, predictions_dir, _ = get_output_dirs(
         config["runId"],
         base_output_dir
     )
