@@ -303,11 +303,24 @@ class ARDClassificationTrainer(Trainer):
         
         Returns predictions as class probabilities.
         """
+        # Debug: Print what fields are in inputs (once)
+        if not hasattr(self, '_debug_eval_inputs_printed'):
+            self._debug_eval_inputs_printed = True
+            print(f"\n[EVAL DEBUG] Input keys during evaluation: {list(inputs.keys())}")
+            if "classes" in inputs:
+                print(f"[EVAL DEBUG] Found 'classes' field with shape: {inputs['classes'].shape}")
+            if "labels" in inputs:
+                print(f"[EVAL DEBUG] Found 'labels' field with shape: {inputs['labels'].shape}")
+        
         # Extract classes
         classes = inputs.pop("classes") if "classes" in inputs else None
-        inputs.pop("labels", None)
+        if classes is None:
+            classes = inputs.pop("labels") if "labels" in inputs else None
         
         has_labels = classes is not None
+        
+        if not has_labels:
+            print(f"[EVAL WARNING] No classes or labels found in evaluation batch!")
         
         # Forward pass
         with torch.no_grad():
