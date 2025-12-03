@@ -649,15 +649,33 @@ def main():
         last = (mask.long().sum() - 1).item()
         print(f"[DEBUG] last idx: {last}")
         print(f"[DEBUG] last token: {tokenizer.convert_ids_to_tokens([ids[last].item()])}")
-
-        for i in range(5):
+        
+        # Dataset sample debugging
+        print(f"\n[DEBUG] === DATASET SAMPLES (First 5 Examples) ===")
+        raw_ds = dataset.raw_dataset["train"]  # Access raw HF dataset
+        for i in range(min(5, len(train_ds))):
             item = train_ds[i]
-            print("---- SAMPLE", i)
-            print("input_ids shape:", item["input_ids"].shape)
-            print("labels:", item["labels"])          # what your dataset thinks the label is
-
+            print(f"\n---- SAMPLE {i} ----")
+            
+            # Handle both tensor and list formats for input_ids
+            input_ids = item["input_ids"]
+            if isinstance(input_ids, torch.Tensor):
+                print(f"input_ids shape: {input_ids.shape}")
+            else:
+                print(f"input_ids length: {len(input_ids)}")
+            
+            print(f"labels: {item['labels']}")  # what your dataset thinks the label is
+            
+            # Access raw answer field from original HF dataset
+            if "answer" in raw_ds[i]:
+                print(f"raw answer field: {raw_ds[i]['answer']}")
+            elif "answerKey" in raw_ds[i]:
+                print(f"raw answerKey field: {raw_ds[i]['answerKey']}")
+            elif "label" in raw_ds[i]:
+                print(f"raw label field: {raw_ds[i]['label']}")
+            
             # decode prompt for human sanity:
-            print("decoded prompt:", tokenizer.decode(item["input_ids"], skip_special_tokens=True))
+            print(f"decoded prompt: {tokenizer.decode(item['input_ids'], skip_special_tokens=True)}")
 
     except Exception as e:
         print(f"[DEBUG] Could not analyze example: {e}")
