@@ -517,21 +517,6 @@ def main():
         train_ds = dataset.train_dataloader.dataset
         val_ds = dataset.test_dataloader.dataset  # They call it test_dataloader
         
-        # DEBUG: Verify last token extraction logic
-        print(f"\n[DEBUG] Checking last token extraction with attention mask:")
-        dataloader = dataset.train_dataloader
-        batch = next(iter(dataloader))
-        ids = batch["input_ids"][0]
-        mask = batch["attention_mask"][0]
-        
-        print(f"[DEBUG] padding_side: {tokenizer.padding_side}")
-        print(f"[DEBUG] tokens: {tokenizer.convert_ids_to_tokens(ids)}")
-        print(f"[DEBUG] mask: {mask.tolist()}")
-        
-        last = (mask.long().sum() - 1).item()
-        print(f"[DEBUG] last idx: {last}")
-        print(f"[DEBUG] last token: {tokenizer.convert_ids_to_tokens([ids[last]])}")
-        
         # Get target_ids for answer tokens (A, B, C, D)
         # For ARC-Easy: map_dict = {"A": 0, "B": 1, "C": 2, "D": 3}
         # We need the token IDs for " A", " B", " C", " D"
@@ -642,6 +627,30 @@ def main():
     print(f"[TOKENIZER]   Model tokenizer available: {hasattr(model, 'config') and hasattr(model.config, 'vocab_size')}")
     print(f"[TOKENIZER]   Main tokenizer PAD ID: {tokenizer.pad_token_id}")
     print(f"[TOKENIZER]   Trainer tokenizer PAD ID: {trainer.tokenizer.pad_token_id}")
+    
+    # DEBUG: Verify last token extraction logic with a raw example
+    print(f"\n[DEBUG] Checking last token extraction with attention mask:")
+    try:
+        # Get first example from training dataset (already tokenized)
+        example = train_ds[0]
+        ids = example["input_ids"]
+        mask = example["attention_mask"]
+        
+        # Convert to tensor if needed
+        if not isinstance(ids, torch.Tensor):
+            ids = torch.tensor(ids)
+        if not isinstance(mask, torch.Tensor):
+            mask = torch.tensor(mask)
+        
+        print(f"[DEBUG] padding_side: {tokenizer.padding_side}")
+        print(f"[DEBUG] tokens: {tokenizer.convert_ids_to_tokens(ids)}")
+        print(f"[DEBUG] mask: {mask.tolist()}")
+        
+        last = (mask.long().sum() - 1).item()
+        print(f"[DEBUG] last idx: {last}")
+        print(f"[DEBUG] last token: {tokenizer.convert_ids_to_tokens([ids[last].item()])}")
+    except Exception as e:
+        print(f"[DEBUG] Could not analyze example: {e}")
     
     # Check if all tokenizers have the same PAD token ID
     all_pad_ids = [
