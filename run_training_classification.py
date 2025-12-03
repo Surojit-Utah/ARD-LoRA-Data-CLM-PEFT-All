@@ -484,7 +484,7 @@ def main():
                     self.dataset = dataset_name
                 
                 self.model = config["model_name_or_path"]
-                self.max_length = config.get("max_len")
+                self.max_seq_len = config.get("max_len")
                 self.pad_to_max_length = False  # Use dynamic padding
                 self.use_slow_tokenizer = False
                 self.batch_size = config["batch_size"]

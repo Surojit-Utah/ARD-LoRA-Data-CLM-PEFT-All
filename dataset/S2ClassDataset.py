@@ -96,7 +96,7 @@ class S2ClassDataset(DatasetBase):
             result = self.tokenizer(
                 texts,
                 padding=self.padding,
-                max_length=self.args.max_length,
+                max_length=self.args.max_seq_len,
                 truncation=True,
             )
             result["labels"] = examples["label"]
