@@ -421,7 +421,8 @@ class ARDClassificationTrainer(Trainer):
                 
                 sample_count += len(classes)
                 
-                if batch_idx % 10 == 0:
+                # Log progress every 100 batches instead of every 10
+                if batch_idx % 100 == 0 and batch_idx > 0:
                     print(f"   Processed {batch_idx + 1} batches, {sample_count} samples")
         
         if len(all_labels) == 0:

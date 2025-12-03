@@ -21,6 +21,7 @@ from trainer.trainer_classification import ARDClassificationTrainer, build_class
 from dataset.S2ClassDataset import S2ClassDataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from utils.io import get_output_dirs, free_memory
+from utils.dataset_utils import analyze_class_distribution
 
 
 def _merge_config(defaults: dict):
@@ -377,6 +378,7 @@ def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, targe
         report_to=config.get("report_to", ["tensorboard"]),
         remove_unused_columns=False,
         dataloader_num_workers=0,
+        disable_tqdm=True,  # Disable progress bars for cleaner output
     )
     
     # Use target_ids passed from main function
@@ -566,11 +568,15 @@ def main():
         print(f"[INFO] Validation samples: {len(val_ds)}")
         print(f"[INFO] Target IDs for answer tokens: {target_ids.tolist()}")
         
+        # Analyze class distribution in training and validation datasets
+        analyze_class_distribution(train_ds, "Training", num_classes)
+        analyze_class_distribution(val_ds, "Validation", num_classes)
+        
         # Sanity check: print label mappings with token representations
-        print(f"[TOKENIZER] Label token mappings:")
-        for label, tid in zip([" A", " B", " C", " D"], target_ids.tolist()):
+        print(f"\n[TOKENIZER] Label token mappings:")
+        for label, tid in zip(labels, target_ids.tolist()):
             token_str = tokenizer.convert_ids_to_tokens(tid)
-            print(f"[TOKENIZER]   {repr(label)} -> id={tid}, tok={repr(token_str)}")
+            print(f"[TOKENIZER]   {repr(' ' + label)} -> id={tid}, tok={repr(token_str)}")
         
         # Check validation dataset size for ARD prior estimation
         val_size = len(val_ds)
