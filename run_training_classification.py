@@ -40,14 +40,24 @@ def _merge_config(defaults: dict):
             merged.update(model_cfg.get("defaults"))
     
     # Apply dataset-specific config
+    dataset_name_specific = merged.get("dataset_name_specific")
     dataset_name = merged.get("dataset_name")
-    if dataset_name and "datasets" in cfg and dataset_name in cfg["datasets"]:
-        dataset_cfg = cfg["datasets"][dataset_name]
-        if dataset_cfg:
-            merged.update(dataset_cfg)
+    
+    # Only use BayesianPEFT nested structure: datasets.BayesianPEFT.winogrande_s
+    if "datasets" in cfg and "BayesianPEFT" in cfg["datasets"]:
+        bayesian_peft_cfg = cfg["datasets"]["BayesianPEFT"]
+        if isinstance(bayesian_peft_cfg, dict) and dataset_name_specific in bayesian_peft_cfg:
+            dataset_cfg = bayesian_peft_cfg[dataset_name_specific]
+            if dataset_cfg:
+                merged.update(dataset_cfg)
     
     # Validate and fix data types for critical parameters
     _validate_config_types(merged)
+    
+    # Set num_tokens to max_len if not explicitly set (handles ${max_len} variable substitution)
+    if "max_len" in merged and ("num_tokens" not in merged or merged.get("num_tokens") == "${max_len}"):
+        merged["num_tokens"] = merged["max_len"]
+        print(f"[CONFIG] Set num_tokens={merged['num_tokens']} from max_len")
     
     return merged
 
