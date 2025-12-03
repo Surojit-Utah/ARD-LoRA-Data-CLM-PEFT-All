@@ -649,6 +649,16 @@ def main():
         last = (mask.long().sum() - 1).item()
         print(f"[DEBUG] last idx: {last}")
         print(f"[DEBUG] last token: {tokenizer.convert_ids_to_tokens([ids[last].item()])}")
+
+        for i in range(5):
+            item = train_ds[i]
+            print("---- SAMPLE", i)
+            print("input_ids shape:", item["input_ids"].shape)
+            print("labels:", item["labels"])          # what your dataset thinks the label is
+
+            # decode prompt for human sanity:
+            print("decoded prompt:", tokenizer.decode(item["input_ids"], skip_special_tokens=True))
+
     except Exception as e:
         print(f"[DEBUG] Could not analyze example: {e}")
     
