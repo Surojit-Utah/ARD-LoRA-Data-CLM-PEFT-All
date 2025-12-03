@@ -342,7 +342,7 @@ def load_model_with_problora(config, verbose=False):
     return model, tokenizer
 
 
-def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, target_ids, tb_log_dir=None, predictions_dir=None):
+def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, target_ids, labels, tb_log_dir=None, predictions_dir=None):
     """Create enhanced ARD-LoRA trainer with uncertainty evaluation and callbacks"""
     
     # Get ARD prior samples directly from config
@@ -394,7 +394,9 @@ def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, targe
         pred_tracker_params = {
             'predictions_dir': predictions_dir,
             'prediction_n_examples': config.get('prediction_n_examples'),
-            'dataset_name': config.get('dataset_name')
+            'dataset_name': config.get('dataset_name'),
+            'target_ids': target_ids,
+            'labels': labels
         }
     
     # Use build_classification_trainer for proper callback integration
@@ -618,7 +620,7 @@ def main():
     print(f"       TensorBoard logs: {tb_log_dir}")
     print(f"       Predictions: {predictions_dir}")
     
-    trainer = create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, target_ids, tb_log_dir, predictions_dir)
+    trainer = create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, target_ids, labels, tb_log_dir, predictions_dir)
     
     # Final tokenizer consistency validation before training
     print(f"\n[TOKENIZER] Final Pre-Training Validation:")

@@ -767,14 +767,16 @@ class PredictionTrackerCallback(TrainerCallback):
     """Callback to track predictions on fixed examples across epochs for interpretability."""
     
     def __init__(self, train_dataset, eval_dataset, output_dir, predictions_dir, tokenizer, 
-                 n_examples=10, dataset_name="arc_easy"):
+                 n_examples=10, dataset_name="arc_easy", target_ids=None, labels=None):
         super().__init__()
         # Use the provided predictions directory directly
         self.prediction_tracker = PredictionTracker(
             output_dir=predictions_dir,  # Use standardized predictions directory
             tokenizer=tokenizer,
             n_examples=n_examples,
-            dataset_name=dataset_name
+            dataset_name=dataset_name,
+            target_ids=target_ids,
+            labels=labels
         )
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
@@ -910,6 +912,10 @@ def build_classification_trainer(
         n_examples = prediction_tracker_params.get('prediction_n_examples')
         dataset_name = prediction_tracker_params.get('dataset_name')
         
+        # Extract target_ids and labels from prediction_tracker_params
+        tracker_target_ids = prediction_tracker_params.get('target_ids')
+        tracker_labels = prediction_tracker_params.get('labels')
+        
         trainer.add_callback(PredictionTrackerCallback(
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
@@ -917,7 +923,9 @@ def build_classification_trainer(
             predictions_dir=predictions_dir,
             tokenizer=tokenizer,
             n_examples=n_examples,
-            dataset_name=dataset_name
+            dataset_name=dataset_name,
+            target_ids=tracker_target_ids,
+            labels=tracker_labels
         ))
         print(f"[CLASSIFICATION] Added PredictionTrackerCallback (tracking {n_examples} examples)")
     
