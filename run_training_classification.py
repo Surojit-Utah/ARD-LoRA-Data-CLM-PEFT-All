@@ -393,7 +393,7 @@ def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, targe
     if enable_pred_tracker and predictions_dir:
         pred_tracker_params = {
             'predictions_dir': predictions_dir,
-            'n_examples': config.get('prediction_n_examples'),
+            'prediction_n_examples': config.get('prediction_n_examples'),
             'dataset_name': config.get('dataset_name')
         }
     
