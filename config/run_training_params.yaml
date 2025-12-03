@@ -208,7 +208,7 @@ datasets:
     boolq:
       dataset_name: "boolq"
       dataset_class: "S2ClassDataset"
-      max_len: 128  # BayesianPEFT uses 512 for ARC
+      max_len: 256  # BayesianPEFT uses 512 for ARC
       num_labels: 2
       validation_split_ratio: 0.1
       max_ard_ratio: 0.8
@@ -231,7 +231,7 @@ datasets:
       dataset_name: "winogrande_s"         # same base dataset
       dataset_class: "S2ClassDataset"
       subset: "small"                    # distinguish WG-S
-      max_len: 128
+      max_len: 512
       num_labels: 2
       validation_split_ratio: 0.1
       max_ard_ratio: 0.8
@@ -244,7 +244,7 @@ datasets:
       dataset_name: "winogrande_m"         # same base dataset
       dataset_class: "S2ClassDataset"
       subset: "medium"                   # distinguish WG-M
-      max_len: 128
+      max_len: 512
       num_labels: 2
       validation_split_ratio: 0.1
       max_ard_ratio: 0.8

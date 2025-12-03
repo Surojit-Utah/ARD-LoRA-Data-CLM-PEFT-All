@@ -408,6 +408,7 @@ def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, targe
         config=config,
         target_ids=target_ids,
         num_classes=config.get('num_classes'),
+        train_dataset_for_weights=train_ds,  # Pass training dataset for class weight computation
         enable_uncertainty_eval=enable_uncertainty,
         enable_prediction_tracker=enable_pred_tracker,
         prediction_tracker_params=pred_tracker_params,

@@ -43,6 +43,7 @@ class ARDClassificationTrainer(Trainer):
         target_attention_layers=None,
         target_ids=None,  # NEW: Token IDs for valid answers
         num_classes=None,    # NEW: Number of classes (K)
+        train_dataset=None,  # NEW: Training dataset for class weight computation
         verbose=False,
         **kwargs
     ):
@@ -81,6 +82,16 @@ class ARDClassificationTrainer(Trainer):
         if target_ids is None:
             raise ValueError("target_ids must be provided for classification mode")
         self.target_ids = target_ids  # Tensor of shape [num_classes]
+        
+        # Compute class weights for imbalanced datasets
+        if train_dataset is not None and self.num_classes is not None:
+            self.class_weights = self._compute_class_weights(train_dataset, self.num_classes)
+            print(f"\n[CLASS WEIGHTS] Computed from {len(train_dataset)} training samples:")
+            for i, w in enumerate(self.class_weights):
+                print(f"  Class {i}: weight={w:.4f}")
+        else:
+            self.class_weights = None
+            print(f"\n[CLASS WEIGHTS] No class weighting applied (balanced CE loss)")
         
         # Store layer configuration
         self.target_attention_layers = target_attention_layers
@@ -159,8 +170,12 @@ class ARDClassificationTrainer(Trainer):
         filtered_logits = last_token_logits[:, target_ids_device.squeeze()]
         # Shape: [batch_size, num_classes]
         
-        # Step 3: Compute cross-entropy loss over K classes
-        loss_fct = nn.CrossEntropyLoss()
+        # Step 3: Compute cross-entropy loss over K classes (with optional class weighting)
+        if self.class_weights is not None:
+            weights = self.class_weights.to(filtered_logits.device)
+            loss_fct = nn.CrossEntropyLoss(weight=weights)
+        else:
+            loss_fct = nn.CrossEntropyLoss()
         ce_loss = loss_fct(filtered_logits, classes)
         
         # Debug info (print once per epoch)
@@ -778,6 +793,7 @@ def build_classification_trainer(
     tokenizer,
     config,  # NEW: Configuration dict
     ard_heldout_loader=None,
+    train_dataset_for_weights=None,  # NEW: Optional separate dataset for weight computation
     target_ids=None,
     num_classes=None,
     enable_uncertainty_eval=False,
@@ -814,6 +830,9 @@ def build_classification_trainer(
     if num_classes is None:
         num_classes = config.get('num_classes')
     
+    # Use provided dataset for weights, or fall back to train_dataset
+    weight_dataset = train_dataset_for_weights if train_dataset_for_weights is not None else train_dataset
+    
     trainer = ARDClassificationTrainer(
         model=model,
         args=args,
@@ -825,6 +844,7 @@ def build_classification_trainer(
         ard_heldout_loader=ard_heldout_loader,
         target_ids=target_ids,
         num_classes=num_classes,
+        train_dataset=weight_dataset,  # NEW: Pass dataset for class weight computation
         **kwargs
     )
     
