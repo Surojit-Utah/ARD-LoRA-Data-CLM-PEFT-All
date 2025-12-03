@@ -120,7 +120,7 @@ defaults:
   # eval_per_steps: null  # Evaluate per epoch instead of per steps
   
   # Callback Configuration - ENABLED FOR FULL ARD FUNCTIONALITY
-  enable_callbacks: false   # Enable ARD callbacks for proper ARD training
+  enable_callbacks: true   # Enable ARD callbacks for proper ARD training
   enable_resampling: false  # Enable for dynamic validation splits
   enable_prediction_tracking: false  # Enable prediction tracking callback
   enable_plotting: false  # Enable plotting callback for latent space visualization
