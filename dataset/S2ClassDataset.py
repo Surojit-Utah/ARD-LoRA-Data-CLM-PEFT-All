@@ -90,7 +90,7 @@ class S2ClassDataset(DatasetBase):
     def _tokenize(self, examples):
         if self.args.dataset == "boolq" and "llama" in self.args.model:
             texts = [
-                f"Answer the question with only True or False: {question} Context: {passage}"
+                f"Answer the question with only True or False: {question} Context: {passage} Answer:"
                 for passage, question in zip(examples["passage"], examples["question"])
             ]
             result = self.tokenizer(

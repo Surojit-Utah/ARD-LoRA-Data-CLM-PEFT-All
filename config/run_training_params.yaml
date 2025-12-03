@@ -24,7 +24,7 @@ defaults:
   # Training hyperparameters (adapted from BayesianPEFT recipe for ARC-Easy)
   learning_rate: 5.0e-04  # BayesianPEFT uses 1e-4 for classification tasks
   lr_scheduler_type: "linear" #"cosine" # "linear"  # BayesianPEFT uses linear scheduler
-  warmup_ratio: 0.06  # BayesianPEFT uses 0.06 warmup ratio
+  warmup_ratio: 0.03  # BayesianPEFT uses 0.06 warmup ratio
   weight_decay: 0.0 # 1e-03
   train_epochs: 10  # Increased to match BayesianPEFT (they use ~5000 steps)
   batch_size: 4  # BayesianPEFT uses batch_size=4 for classification

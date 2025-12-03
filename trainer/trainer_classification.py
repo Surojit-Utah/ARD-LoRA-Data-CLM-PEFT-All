@@ -210,8 +210,13 @@ class ARDClassificationTrainer(Trainer):
         # Step 2: Filter to ONLY valid answer tokens
         # target_ids shape: [num_classes] (e.g., [319, 350, 315, 360, 382] for A,B,C,D,E)
         target_ids_device = self.target_ids.to(last_token_logits.device)
-        filtered_logits = last_token_logits[:, target_ids_device.squeeze()]
         # Shape: [batch_size, num_classes]
+        filtered_logits = last_token_logits[:, target_ids_device.squeeze()]
+        # filtered_logits = torch.index_select(
+        #     last_token_logits, 
+        #     dim=1, 
+        #     index=target_ids_device.squeeze()
+        # )
         
         # Step 3: Compute cross-entropy loss over K classes (with optional class weighting)
         if self.class_weights is not None:
@@ -229,8 +234,47 @@ class ARDClassificationTrainer(Trainer):
             print(f"  Last token logits shape: {last_token_logits.shape}")
             print(f"  Filtered logits shape: {filtered_logits.shape}")
             print(f"  Classes shape: {classes.shape}")
-            print(f"  Classes: {classes.tolist()}")
+            print(f"  Classes (GT labels): {classes.tolist()}")
             print(f"  CE Loss: {ce_loss.item():.4f}")
+            
+            # GRADIENT FLOW VERIFICATION
+            print(f"\n[GRADIENT FLOW CHECK]:")
+            print(f"  logits.requires_grad: {logits.requires_grad}")
+            print(f"  last_token_logits.requires_grad: {last_token_logits.requires_grad}")
+            print(f"  filtered_logits.requires_grad: {filtered_logits.requires_grad}")
+            print(f"  ce_loss.requires_grad: {ce_loss.requires_grad}")
+            print(f"  logits.grad_fn: {logits.grad_fn}")
+            print(f"  filtered_logits.grad_fn: {filtered_logits.grad_fn}")
+            print(f"  ce_loss.grad_fn: {ce_loss.grad_fn}")
+            
+            # CRITICAL DEBUG: Check what the model is actually predicting
+            print(f"\n[TOKEN ID DEBUG] Verifying answer token extraction:")
+            print(f"  Target IDs: {self.target_ids.tolist()}")
+            
+            # Get top predicted class for first example
+            probs = torch.softmax(filtered_logits[0], dim=-1)
+            top_class = torch.argmax(probs).item()
+            print(f"  First example predictions:")
+            print(f"    Filtered logits (answer tokens only): {filtered_logits[0].tolist()}")
+            print(f"    Probabilities: {probs.tolist()}")
+            print(f"    Predicted class: {top_class}")
+            print(f"    GT class: {classes[0].item()}")
+            
+            # Check what the model predicts for the FULL vocab (not just answer tokens)
+            full_probs = torch.softmax(last_token_logits[0], dim=-1)
+            top5_full = torch.topk(full_probs, k=10)
+            print(f"  Top 10 predicted tokens (full vocab) for first example:")
+            from transformers import AutoTokenizer
+            for i, (prob, idx) in enumerate(zip(top5_full.values, top5_full.indices)):
+                token = self.tokenizer.convert_ids_to_tokens(idx.item())
+                print(f"    {i+1}. Token '{token}' (id={idx.item()}): prob={prob.item():.4f}")
+            
+            # Check if target tokens are in top predictions
+            print(f"  Target token probabilities in full vocab:")
+            for i, tid in enumerate(self.target_ids.tolist()):
+                token = self.tokenizer.convert_ids_to_tokens(tid)
+                prob = full_probs[tid].item()
+                print(f"    Class {i} ('{token}', id={tid}): prob={prob:.4f}")
         
         # ===== KL DIVERGENCE COMPUTATION (SAME AS CLM) =====
         

@@ -9,7 +9,7 @@ Key Features:
 1. Selects representative examples from training and validation sets
 2. Tracks prediction evolution across epochs
 3. Saves human-readable prediction files
-4. Provides detailed confidence analysis for multiple choice questions
+4. Provides detailed confidence analysis for classification tasks
 """
 
 import os
@@ -28,8 +28,7 @@ class PredictionTracker:
     """
     Tracks model predictions on fixed examples across training epochs.
     
-    Designed specifically for ARC-Easy multiple choice questions but can be
-    extended for other datasets.
+    Supports any classification dataset with multiple choice or binary questions.
     """
     
     def __init__(self, 
@@ -62,7 +61,7 @@ class PredictionTracker:
         
         # Store target_ids and labels for dynamic choice handling
         self.target_ids = target_ids
-        self.labels = labels if labels is not None else ['A', 'B', 'C', 'D']  # Default to 4-choice
+        self.labels = labels
         
         print(f"[PredictionTracker] Initialized with labels: {self.labels}")
         
@@ -78,24 +77,13 @@ class PredictionTracker:
             'val': []
         }
         
-        # Load raw ARC-Easy dataset for accessing original questions/answers
-        self.raw_arc_dataset = None
-        if self.dataset_name == "arc_easy":
-            try:
-                from datasets import load_dataset
-                print(f"[PredictionTracker] Loading raw ARC-Easy dataset for original question access...")
-                self.raw_arc_dataset = load_dataset("allenai/ai2_arc", "ARC-Easy")
-                print(f"[PredictionTracker] Raw ARC-Easy dataset loaded successfully")
-            except Exception as e:
-                print(f"[PredictionTracker] WARNING: Could not load raw dataset: {e}")
-        
         print(f"[PredictionTracker] Initialized with output_dir: {self.output_dir}")
     
     def select_examples(self, train_dataset, val_dataset):
         """
         Select representative examples from training and validation sets.
         
-        For ARC-Easy: Ensures we have examples from different answer choices (A/B/C/D).
+        Ensures balanced selection across different answer choices.
         
         Args:
             train_dataset: Training dataset
@@ -135,14 +123,7 @@ class PredictionTracker:
         Returns:
             (indices, examples): Selected indices and example data
         """
-        total_size = len(dataset)
-        
-        if self.dataset_name == "arc_easy":
-            # For ARC-Easy: Try to get balanced answer choices
-            return self._select_arc_easy_balanced(dataset, n_examples, split_name)
-        else:
-            # For other datasets: Balanced selection by answer choice
-            return self._select_generic_balanced(dataset, n_examples, split_name)
+        return self._select_generic_balanced(dataset, n_examples, split_name)
     
     def _select_generic_balanced(self, dataset, n_examples: int, split_name: str) -> Tuple[List[int], List[Dict]]:
         """
@@ -212,6 +193,8 @@ class PredictionTracker:
                 else:
                     text = ""
                 
+                attention_mask = example.get('attention_mask')
+                
                 # Extract class index
                 class_idx = -1
                 if 'classes' in example:
@@ -264,169 +247,10 @@ class PredictionTracker:
                     'input_ids': input_ids,
                     'labels': example.get('labels', []),
                     'classes': class_idx,
-                    'attention_mask': example.get('attention_mask', []),
-                    'text': text,
+                    'attention_mask': attention_mask,
+                    'text': text,  # Decoded text as-is
                     'answer_choice': self.labels[class_idx] if 0 <= class_idx < len(self.labels) else 'Unknown'
                 }
-                
-                examples.append(example_dict)
-            except Exception as e:
-                print(f"[PredictionTracker] Error processing {split_name}[{idx}]: {e}")
-                import traceback
-                traceback.print_exc()
-                continue
-        
-        return selected_indices, examples
-    
-    def _select_arc_easy_balanced(self, dataset, n_examples: int, split_name: str) -> Tuple[List[int], List[Dict]]:
-        """
-        Select ARC-Easy examples with balanced answer choices.
-        
-        Args:
-            dataset: ARC-Easy dataset
-            n_examples: Number of examples to select
-            split_name: Name of split for logging
-            
-        Returns:
-            (indices, examples): Selected indices and example data
-        """
-        # Validate n_examples
-        if n_examples <= 0:
-            print(f"[PredictionTracker] WARNING: n_examples={n_examples} is invalid, using default of 10")
-            n_examples = 10
-        
-        total_size = len(dataset)
-        if total_size == 0:
-            print(f"[PredictionTracker] WARNING: {split_name} dataset is empty")
-            return [], []
-        
-        # Adjust n_examples if it exceeds dataset size
-        if n_examples > total_size:
-            print(f"[PredictionTracker] WARNING: n_examples={n_examples} > dataset size={total_size}, using {total_size}")
-            n_examples = total_size
-        
-        # Group examples by answer choice (using dynamic labels)
-        answer_groups = {label: [] for label in self.labels}
-        
-        # Sample a subset to analyze (for large datasets)
-        total_size = len(dataset)
-        sample_size = min(1000, total_size)
-        sample_indices = random.sample(range(total_size), sample_size)
-        
-        for idx in sample_indices:
-            try:
-                example = dataset[idx]
-                
-                # Extract answer choice from labels
-                answer_choice = self._extract_answer_choice_from_example(example)
-                
-                if answer_choice in answer_groups:
-                    answer_groups[answer_choice].append(idx)
-                    
-            except Exception as e:
-                print(f"[PredictionTracker] Error analyzing {split_name}[{idx}]: {e}")
-                continue
-        
-        # Select balanced examples
-        num_choices = len(self.labels)
-        examples_per_choice = max(1, n_examples // num_choices)  # Distribute evenly across choices
-        selected_indices = []
-        
-        for choice, indices in answer_groups.items():
-            if indices:
-                # Select random examples from this choice
-                n_select = min(examples_per_choice, len(indices))
-                selected = random.sample(indices, n_select)
-                selected_indices.extend(selected)
-                print(f"[PredictionTracker] {split_name}: Selected {n_select} examples with answer {choice}")
-        
-        # If we don't have enough, fill with random examples
-        while len(selected_indices) < n_examples and len(selected_indices) < total_size:
-            remaining_indices = [i for i in range(total_size) if i not in selected_indices]
-            if remaining_indices:
-                selected_indices.append(random.choice(remaining_indices))
-        
-        # Limit to requested number
-        selected_indices = selected_indices[:n_examples]
-        
-        # Get the actual examples
-        examples = []
-        for idx in selected_indices:
-            try:
-                # Get the processed example from the dataset
-                example = dataset[idx]
-                
-                # Decode text for human readability (processed prompt)
-                input_ids = example.get('input_ids', [])
-                text = self.tokenizer.decode(input_ids, skip_special_tokens=True) if input_ids else ""
-                
-                # Access raw dataset for original question/choices/answerKey
-                # CRITICAL: Match by question text, not index, because datasets are filtered differently
-                raw_example = None
-                if self.raw_arc_dataset is not None:
-                    # Determine split name
-                    split = 'train' if split_name == 'train' else 'validation'
-                    
-                    # Extract question text from the formatted prompt to match with raw dataset
-                    question_from_prompt = None
-                    try:
-                        # Parse the formatted prompt to extract the actual question
-                        # Format is usually: "Select one... question: <QUESTION> Choices: ..."
-                        if 'question:' in text.lower():
-                            parts = text.split('Choices:')[0]  # Get part before choices
-                            # Find the question after "question:"
-                            question_start = parts.lower().rfind('question:')
-                            if question_start != -1:
-                                question_from_prompt = parts[question_start + len('question:'):].strip()
-                        
-                        # Search raw dataset for matching question by text
-                        if question_from_prompt and len(question_from_prompt) > 20:
-                            for raw_item in self.raw_arc_dataset[split]:
-                                if raw_item['question'].strip() == question_from_prompt:
-                                    raw_example = raw_item
-                                    print(f"[PredictionTracker] Matched example {idx} to raw dataset by question text")
-                                    break
-                        
-                        # If still no match, fallback to index (may be wrong due to filtering)
-                        if raw_example is None:
-                            try:
-                                raw_example = self.raw_arc_dataset[split][idx]
-                                print(f"[PredictionTracker] WARNING: Using index-based match for {split}[{idx}] - may be incorrect!")
-                            except:
-                                print(f"[PredictionTracker] Could not access raw dataset at {split}[{idx}]")
-                    except Exception as e:
-                        print(f"[PredictionTracker] Error matching raw example: {e}")
-                
-                # Compute the class index from answerKey
-                class_idx = -1
-                if raw_example is not None and 'answerKey' in raw_example:
-                    answer_key = raw_example['answerKey']
-                    if answer_key.isalpha():
-                        class_idx = ord(answer_key) - ord("A")  # A->0, B->1, C->2, D->3
-                    else:
-                        class_idx = int(answer_key) - 1  # 1->0, 2->1, 3->2, 4->3
-                elif 'classes' in example:
-                    class_idx = example['classes']
-                elif 'label' in example:
-                    class_idx = example['label']
-                
-                # Store both raw and processed information
-                example_dict = {
-                    'index': idx,
-                    'input_ids': input_ids,
-                    'labels': example.get('labels', []),
-                    'classes': class_idx,  # Use computed class index
-                    'attention_mask': example.get('attention_mask', []),
-                    'text': text,  # Processed prompt fed to model
-                    'answer_choice': self.labels[class_idx] if 0 <= class_idx < len(self.labels) else 'Unknown'
-                }
-                
-                # Add raw dataset information if available
-                if raw_example is not None:
-                    example_dict['raw_question'] = raw_example.get('question', '')
-                    example_dict['raw_choices'] = raw_example.get('choices', {})
-                    example_dict['raw_answerKey'] = raw_example.get('answerKey', '')
-                    example_dict['raw_id'] = raw_example.get('id', '')
                 
                 examples.append(example_dict)
             except Exception as e:
@@ -593,7 +417,7 @@ class PredictionTracker:
             example_idx: Example index
             
         Returns:
-            Prediction information dictionary
+            Prediction information dictionary with prediction, confidence, and probabilities
         """
         try:
             # Get token probabilities at the last position (answer position)
@@ -636,7 +460,7 @@ class PredictionTracker:
             correct_answer = example.get('answer_choice', 'Unknown')
             
             # Get human-readable text (processed prompt)
-            text = example.get('text', '')
+            text = example.get('text')
             if not text and 'input_ids' in example:
                 text = self.tokenizer.decode(example['input_ids'], skip_special_tokens=True)
             
@@ -724,7 +548,7 @@ class PredictionTracker:
         Write a single prediction to file in human-readable format.
         
         Displays:
-        1. Original raw question, choices, and answerKey from dataset
+        1. Raw dataset information (if available)
         2. Processed input and training label used by model
         3. Model's prediction and confidence
         
@@ -739,9 +563,9 @@ class PredictionTracker:
         f.write(f"Example {prediction['example_idx']} (Dataset Index: {prediction.get('dataset_idx', 'N/A')})\n")
         f.write(f"{'='*80}\n\n")
         
-        # ============ SECTION 1: ORIGINAL DATASET (RAW) ============
+        # ============ SECTION 1: RAW DATASET INFORMATION (if available) ============
         if 'raw_question' in prediction:
-            f.write("[ 1. ORIGINAL DATASET (Raw, Unprocessed) ]\n")
+            f.write("[ 1. RAW DATASET INFORMATION ]\n")
             f.write("-" * 80 + "\n")
             
             # Dataset ID
@@ -844,9 +668,7 @@ class PredictionTracker:
                     f.write(f"  Training Label: {answer_choice}\n")
                     
                     # Show complete processed text with ground truth answer
-                    text = example.get('text', '')
-                    if text.rstrip().endswith('Answer:'):
-                        text = text.rstrip() + f" {answer_choice}"
+                    text = example.get('text')
                     f.write(f"  Processed Text: {text}\n\n")
             
             # Validation examples info
@@ -867,9 +689,7 @@ class PredictionTracker:
                     f.write(f"  Training Label: {answer_choice}\n")
                     
                     # Show complete processed text with ground truth answer
-                    text = example.get('text', '')
-                    if text.rstrip().endswith('Answer:'):
-                        text = text.rstrip() + f" {answer_choice}"
+                    text = example.get('text')
                     f.write(f"  Processed Text: {text}\n\n")
         
         print(f"[PredictionTracker] Saved example selection info to: {info_file}")

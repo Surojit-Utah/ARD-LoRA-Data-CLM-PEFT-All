@@ -517,6 +517,21 @@ def main():
         train_ds = dataset.train_dataloader.dataset
         val_ds = dataset.test_dataloader.dataset  # They call it test_dataloader
         
+        # DEBUG: Verify last token extraction logic
+        print(f"\n[DEBUG] Checking last token extraction with attention mask:")
+        dataloader = dataset.train_dataloader
+        batch = next(iter(dataloader))
+        ids = batch["input_ids"][0]
+        mask = batch["attention_mask"][0]
+        
+        print(f"[DEBUG] padding_side: {tokenizer.padding_side}")
+        print(f"[DEBUG] tokens: {tokenizer.convert_ids_to_tokens(ids)}")
+        print(f"[DEBUG] mask: {mask.tolist()}")
+        
+        last = (mask.long().sum() - 1).item()
+        print(f"[DEBUG] last idx: {last}")
+        print(f"[DEBUG] last token: {tokenizer.convert_ids_to_tokens([ids[last]])}")
+        
         # Get target_ids for answer tokens (A, B, C, D)
         # For ARC-Easy: map_dict = {"A": 0, "B": 1, "C": 2, "D": 3}
         # We need the token IDs for " A", " B", " C", " D"
