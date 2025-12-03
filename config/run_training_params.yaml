@@ -1,18 +1,18 @@
 # LLaMA-2-7B causal LM experiments with ARD-LoRA and Bayesian-PEFT datasets
 defaults:
-  runId: 1
+  runId: 2
   # Model configuration
   model_name: "LLaMA2-7B"
   model_name_or_path: "meta-llama/Llama-2-7b-hf"
   tokenizer_name: null  # Use model tokenizer
   train_type: "classification"  # Changed to "classification" for last-token prediction mode
   attn_implementation: "flash_attention_2"  # Use Flash Attention 2 for better memory efficiency
-  dataset_name: "winogrande_m"  # Dataset name for prediction tracking
-  dataset_name_specific: "winogrande_m"  # Which specific dataset from Bayesian-PEFT
+  dataset_name: "arc_easy"  # Dataset name for prediction tracking
+  dataset_name_specific: "arc_easy"  # Which specific dataset from Bayesian-PEFT
   
   # Classification-specific configuration (NEW for ARC-Easy)
   task_mode: "classification"  # Enable classification mode (last-token prediction)
-  num_classes: 2  # Number of answer choices for ARC-Challenge (A, B, C, D) - 4 choices
+  num_classes: 4  # Number of answer choices for ARC-Challenge (A, B, C, D) - 4 choices
   add_space_to_answers: true  # Add leading space to answer tokens (CRITICAL for tokenization!)
   few_shot_prompting: false  # Use zero-shot prompting (following BayesianPEFT)
   
@@ -122,7 +122,7 @@ defaults:
   # Callback Configuration - ENABLED FOR FULL ARD FUNCTIONALITY
   enable_callbacks: true   # Enable ARD callbacks for proper ARD training
   enable_resampling: false  # Enable for dynamic validation splits
-  enable_prediction_tracking: false  # Enable prediction tracking callback
+  enable_prediction_tracking: true  # Enable prediction tracking callback
   enable_plotting: false  # Enable plotting callback for latent space visualization
   plot_start_epoch: 2  # Epoch to start plotting from
   plot_interval: 2  # Plot every N epochs
