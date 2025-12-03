@@ -29,19 +29,22 @@ def _merge_config(defaults: dict):
     merged = dict(defaults)
     
     # Apply top-level defaults
-    merged.update(cfg.get("defaults"))
+    if cfg.get("defaults"):
+        merged.update(cfg.get("defaults"))
     
     # Apply model-specific defaults
-    model_name = merged["model_name"]
-    if "models" in cfg and model_name in cfg["models"]:
+    model_name = merged.get("model_name")
+    if model_name and "models" in cfg and model_name in cfg["models"]:
         model_cfg = cfg["models"][model_name]
-        merged.update(model_cfg.get("defaults"))
+        if model_cfg and model_cfg.get("defaults"):
+            merged.update(model_cfg.get("defaults"))
     
     # Apply dataset-specific config
-    dataset_name = merged["dataset_name"]
-    if "datasets" in cfg and dataset_name in cfg["datasets"]:
+    dataset_name = merged.get("dataset_name")
+    if dataset_name and "datasets" in cfg and dataset_name in cfg["datasets"]:
         dataset_cfg = cfg["datasets"][dataset_name]
-        merged.update(dataset_cfg)
+        if dataset_cfg:
+            merged.update(dataset_cfg)
     
     # Validate and fix data types for critical parameters
     _validate_config_types(merged)
@@ -451,7 +454,7 @@ def main():
     model, tokenizer = load_model_with_problora(config, verbose=False)
     
     # Load ARC-Easy dataset using BayesianPEFT's S2ClassDataset
-    print(f"\n[STEP 2] Loading ARC-Easy dataset (BayesianPEFT format)...")
+    print(f"\n[STEP 2] Loading dataset (BayesianPEFT format)...")
     dataset_name = config["dataset_name_specific"]
     
     try:
