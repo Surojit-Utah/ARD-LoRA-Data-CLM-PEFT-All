@@ -43,7 +43,7 @@ class ARDClassificationTrainer(Trainer):
         target_attention_layers=None,
         target_ids=None,  # NEW: Token IDs for valid answers
         num_classes=None,    # NEW: Number of classes (K)
-        train_dataset=None,  # NEW: Training dataset for class weight computation
+        train_dataset_for_weights=None,  # NEW: Training dataset for class weight computation
         verbose=False,
         **kwargs
     ):
@@ -84,9 +84,9 @@ class ARDClassificationTrainer(Trainer):
         self.target_ids = target_ids  # Tensor of shape [num_classes]
         
         # Compute class weights for imbalanced datasets
-        if train_dataset is not None and self.num_classes is not None:
-            self.class_weights = self._compute_class_weights(train_dataset, self.num_classes)
-            print(f"\n[CLASS WEIGHTS] Computed from {len(train_dataset)} training samples:")
+        if train_dataset_for_weights is not None and self.num_classes is not None:
+            self.class_weights = self._compute_class_weights(train_dataset_for_weights, self.num_classes)
+            print(f"\n[CLASS WEIGHTS] Computed from {len(train_dataset_for_weights)} training samples:")
             for i, w in enumerate(self.class_weights):
                 print(f"  Class {i}: weight={w:.4f}")
         else:
@@ -109,6 +109,49 @@ class ARDClassificationTrainer(Trainer):
         print(f"[CLASSIFICATION]   Target IDs: {self.target_ids.tolist()}")
         print(f"[CLASSIFICATION]   KL beta: {self.beta}")
         print(f"[CLASSIFICATION]   Use KL loss: {self.use_kl}")
+    
+    def _compute_class_weights(self, dataset, num_classes):
+        """
+        Compute inverse frequency class weights for imbalanced datasets.
+        
+        Formula: weight[i] = total_samples / (num_classes * count[i])
+        
+        Args:
+            dataset: Training dataset with 'classes' or 'labels' field
+            num_classes: Number of classes
+        
+        Returns:
+            torch.Tensor: Class weights of shape [num_classes]
+        """
+        import torch
+        from collections import Counter
+        
+        # Extract all class labels from dataset
+        all_classes = []
+        for i in range(len(dataset)):
+            sample = dataset[i]
+            # Support both 'classes' and 'labels' fields
+            if 'classes' in sample:
+                all_classes.append(sample['classes'])
+            elif 'labels' in sample:
+                all_classes.append(sample['labels'])
+            else:
+                raise ValueError(f"Dataset must have 'classes' or 'labels' field, got: {list(sample.keys())}")
+        
+        # Count class frequencies
+        class_counts = Counter(all_classes)
+        total_samples = len(all_classes)
+        
+        # Compute inverse frequency weights
+        weights = torch.zeros(num_classes)
+        for class_idx in range(num_classes):
+            count = class_counts.get(class_idx, 0)
+            if count > 0:
+                weights[class_idx] = total_samples / (num_classes * count)
+            else:
+                weights[class_idx] = 0.0  # No samples for this class
+        
+        return weights
     
     def compute_loss(
         self,
@@ -844,7 +887,7 @@ def build_classification_trainer(
         ard_heldout_loader=ard_heldout_loader,
         target_ids=target_ids,
         num_classes=num_classes,
-        train_dataset=weight_dataset,  # NEW: Pass dataset for class weight computation
+        train_dataset_for_weights=weight_dataset,  # Pass dataset for class weight computation
         **kwargs
     )
     
