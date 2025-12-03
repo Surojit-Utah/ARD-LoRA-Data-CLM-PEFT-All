@@ -991,23 +991,36 @@ class ARDClassificationTrainer(ResamplingTrainer):
             for cb in progress_callbacks:
                 self.callback_handler.add_callback(cb)
     
-    def evaluate_uncertainty(self) -> Optional[Dict[str, float]]:
+    def evaluate_uncertainty(self, use_train_set=False) -> Optional[Dict[str, float]]:
         """
         Evaluate model uncertainty using ACC, ECE, and NLL metrics.
         Classification-specific version using last-token prediction.
+        
+        Args:
+            use_train_set: If True, evaluate on training set (to check overfitting).
+                          If False, evaluate on validation set (default).
         """
         if self.uncertainty_evaluator is None:
             print("[WARNING] Uncertainty evaluator not available")
             return None
-            
-        if self.eval_dataset is None:
-            print("[WARNING] No evaluation dataset available for uncertainty evaluation")
-            return None
         
-        eval_dataset = self.eval_dataset
+        # Select dataset based on parameter
+        if use_train_set:
+            if self.train_dataset is None:
+                print("[WARNING] No training dataset available for uncertainty evaluation")
+                return None
+            eval_dataset = self.train_dataset
+            dataset_name = "TRAIN"
+        else:
+            if self.eval_dataset is None:
+                print("[WARNING] No evaluation dataset available for uncertainty evaluation")
+                return None
+            eval_dataset = self.eval_dataset
+            dataset_name = "VAL"
+        
         dataset_size = len(eval_dataset)
         
-        print(f"\n🔄 Starting uncertainty evaluation on full dataset ({dataset_size} samples)...")
+        print(f"\n🔄 Starting uncertainty evaluation on {dataset_name} set ({dataset_size} samples)...")
         
         # Create evaluation dataloader
         eval_dataloader = self.get_eval_dataloader(eval_dataset)
@@ -1308,7 +1321,7 @@ class EvalLossComponentsCallback(TrainerCallback):
 
 
 class UncertaintyEvaluationCallback(TrainerCallback):
-    """Callback to run uncertainty evaluation at the beginning of each epoch."""
+    """Callback to run uncertainty evaluation at the beginning of each epoch on BOTH train and val sets."""
     
     def __init__(self):
         super().__init__()
@@ -1322,39 +1335,71 @@ class UncertaintyEvaluationCallback(TrainerCallback):
             print("[UncertaintyEvaluationCallback] No trainer reference found")
             return
         
-        # Run uncertainty evaluation at the beginning of each epoch
-        if trainer.eval_dataset is not None:
-            print(f"\n📊 Running uncertainty evaluation at beginning of epoch {state.epoch}...")
-            metrics = trainer.evaluate_uncertainty()
+        print(f"\n{'='*80}")
+        print(f"📊 UNCERTAINTY EVALUATION - Epoch {state.epoch}")
+        print(f"{'='*80}")
+        
+        # EVALUATE ON TRAINING SET (to check if model is learning/overfitting)
+        if trainer.train_dataset is not None:
+            print(f"\n[1/2] Evaluating on TRAINING set...")
+            train_metrics = trainer.evaluate_uncertainty(use_train_set=True)
             
-            if metrics is not None:
-                # Add epoch information
-                metrics['epoch'] = state.epoch
-                metrics['global_step'] = state.global_step
-                
-                # Store results
-                trainer.uncertainty_results.append(metrics)
+            if train_metrics is not None:
+                # Add epoch information and dataset marker
+                train_metrics['epoch'] = state.epoch
+                train_metrics['global_step'] = state.global_step
+                train_metrics['split'] = 'train'
                 
                 # Print formatted results
-                print(f"\n📈 Epoch {state.epoch} Uncertainty Results (Pre-Training):")
-                print(f"   Accuracy (ACC): {metrics['accuracy']:.4f}")
-                print(f"   Expected Calibration Error (ECE): {metrics['ece']:.4f}")
-                print(f"   Negative Log-Likelihood (NLL): {metrics['nll']:.4f}")
+                print(f"\n📈 TRAIN SET Results:")
+                print(f"   Accuracy: {train_metrics['accuracy']:.4f}")
+                print(f"   ECE:      {train_metrics['ece']:.4f}")
+                print(f"   NLL:      {train_metrics['nll']:.4f}")
                 
-                # Log uncertainty metrics to tensorboard
+                # Log to tensorboard
                 if trainer.args.report_to and 'tensorboard' in trainer.args.report_to:
-                    uncertainty_metrics = {}
-                    for key, value in metrics.items():
+                    train_uncertainty_metrics = {}
+                    for key, value in train_metrics.items():
                         if isinstance(value, (int, float)):
-                            uncertainty_metrics[f"uncertainty_pre_epoch/{key}"] = value
-                    trainer.log(uncertainty_metrics)
+                            train_uncertainty_metrics[f"uncertainty_train/{key}"] = value
+                    trainer.log(train_uncertainty_metrics)
+        
+        # EVALUATE ON VALIDATION SET (standard evaluation)
+        if trainer.eval_dataset is not None:
+            print(f"\n[2/2] Evaluating on VALIDATION set...")
+            val_metrics = trainer.evaluate_uncertainty(use_train_set=False)
+            
+            if val_metrics is not None:
+                # Add epoch information and dataset marker
+                val_metrics['epoch'] = state.epoch
+                val_metrics['global_step'] = state.global_step
+                val_metrics['split'] = 'val'
+                
+                # Store results (only val for compatibility)
+                trainer.uncertainty_results.append(val_metrics)
+                
+                # Print formatted results
+                print(f"\n📈 VALIDATION SET Results:")
+                print(f"   Accuracy: {val_metrics['accuracy']:.4f}")
+                print(f"   ECE:      {val_metrics['ece']:.4f}")
+                print(f"   NLL:      {val_metrics['nll']:.4f}")
+                
+                # Log to tensorboard
+                if trainer.args.report_to and 'tensorboard' in trainer.args.report_to:
+                    val_uncertainty_metrics = {}
+                    for key, value in val_metrics.items():
+                        if isinstance(value, (int, float)):
+                            val_uncertainty_metrics[f"uncertainty_val/{key}"] = value
+                    trainer.log(val_uncertainty_metrics)
                 
                 # Save results to file
                 trainer._save_uncertainty_results()
             else:
-                print(f"[WARNING] No uncertainty metrics available for epoch {state.epoch}")
+                print(f"[WARNING] No validation uncertainty metrics available for epoch {state.epoch}")
         else:
             print(f"[INFO] No evaluation dataset available for uncertainty evaluation at epoch {state.epoch}")
+        
+        print(f"{'='*80}\n")
 
 
 class PredictionTrackerCallback(TrainerCallback):
