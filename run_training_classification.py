@@ -508,13 +508,38 @@ def main():
             ids = tok.encode(s, add_special_tokens=False)
             return ids[-1]  # safe even if multi-piece
         
-        target_ids = torch.tensor([
-            last_token_id(tokenizer, " A"),
-            last_token_id(tokenizer, " B"),
-            last_token_id(tokenizer, " C"),
-            last_token_id(tokenizer, " D"),
-        ])
+        # target_ids = torch.tensor([
+        #     last_token_id(tokenizer, " A"),
+        #     last_token_id(tokenizer, " B"),
+        #     last_token_id(tokenizer, " C"),
+        #     last_token_id(tokenizer, " D"),
+        # ])
         
+        # Build target_ids based on num_classes and dataset_name in config
+        num_classes = config.get('num_classes')  # Default to 4 if not specified
+        dataset_name = config.get('dataset_name').lower()
+        
+        # Dataset-specific label formats
+        if dataset_name == 'boolq':
+            # BoolQ uses True/False labels
+            labels = ['True', 'False']
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        elif dataset_name in ['winogrande_s', 'winogrande_m']:
+            # Winogrande uses A, B labels (binary choice)
+            labels = ['A', 'B']
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        elif num_classes <= 5:
+            # Use letters for small number of classes (typical MCQ format)
+            labels = [chr(ord('A') + i) for i in range(num_classes)]
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        else:
+            # Use numbers for larger number of classes
+            labels = [str(i+1) for i in range(num_classes)]
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        
+        print(f"[INFO] Number of classes: {num_classes}")
+        print(f"[INFO] Answer labels: {labels}")
+
         # Validate tokenizer consistency after dataset loading
         print(f"[TOKENIZER] Post-dataset loading validation:")
         print(f"[TOKENIZER]   PAD token ID: {tokenizer.pad_token_id}")
