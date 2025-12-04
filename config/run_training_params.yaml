@@ -60,7 +60,7 @@ defaults:
   pad_to_multiple_of: 8  # Optimize for A100 tensor cores with BF16
 
   # ARD-LoRA Configuration (following BayesianPEFT: rank=8, alpha=16)
-  rank: 32 # BayesianPEFT uses rank=8 for classification
+  rank: 8 # BayesianPEFT uses rank=8 for classification
   lora_alpha: 16  # BayesianPEFT uses alpha=16 (scaling = 16/8 = 2.0)
   lora_dropout: 0.0  # BayesianPEFT uses 0 dropout
   # scaling: 0.25  # Deprecated: now computed as lora_alpha/rank
@@ -231,7 +231,7 @@ datasets:
       dataset_name: "winogrande_s"         # same base dataset
       dataset_class: "S2ClassDataset"
       subset: "small"                    # distinguish WG-S
-      max_len: 512
+      max_len: 300
       num_labels: 2
       validation_split_ratio: 0.1
       max_ard_ratio: 0.8
