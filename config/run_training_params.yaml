@@ -1,6 +1,6 @@
 # LLaMA-2-7B causal LM experiments with ARD-LoRA and Bayesian-PEFT datasets
 defaults:
-  runId: 2
+  runId: 1
   # Model configuration
   model_name: "LLaMA2-7B"
   model_name_or_path: "meta-llama/Llama-2-7b-hf"
@@ -22,7 +22,7 @@ defaults:
   use_google_drive: true  # Enable Google Drive caching
   
   # Training hyperparameters (adapted from BayesianPEFT recipe for ARC-Easy)
-  learning_rate: 5.0e-04  # BayesianPEFT uses 1e-4 for classification tasks
+  learning_rate: 1.0e-04  # BayesianPEFT uses 1e-4 for classification tasks
   lr_scheduler_type: "linear" #"cosine" # "linear"  # BayesianPEFT uses linear scheduler
   warmup_ratio: 0.03  # BayesianPEFT uses 0.06 warmup ratio
   weight_decay: 0.0 # 1e-03
@@ -60,7 +60,7 @@ defaults:
   pad_to_multiple_of: 8  # Optimize for A100 tensor cores with BF16
 
   # ARD-LoRA Configuration (following BayesianPEFT: rank=8, alpha=16)
-  rank: 8 # BayesianPEFT uses rank=8 for classification
+  rank: 32 # BayesianPEFT uses rank=8 for classification
   lora_alpha: 16  # BayesianPEFT uses alpha=16 (scaling = 16/8 = 2.0)
   lora_dropout: 0.0  # BayesianPEFT uses 0 dropout
   # scaling: 0.25  # Deprecated: now computed as lora_alpha/rank
