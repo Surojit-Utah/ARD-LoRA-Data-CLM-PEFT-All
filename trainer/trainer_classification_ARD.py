@@ -312,7 +312,7 @@ class ARDClassificationTrainer(ResamplingTrainer):
         
         # Print detailed debug info every 50 steps (or first 3 steps of each epoch)
         step_in_epoch = current_step % len(self.get_train_dataloader()) if hasattr(self, 'state') and len(self.get_train_dataloader()) > 0 else 0
-        should_debug = (step_in_epoch < 3) or (current_step % 50 == 0)
+        should_debug = False #(step_in_epoch < 3) or (current_step % 50 == 0)
         
         if should_debug:
             self._debug_step_counter += 1
