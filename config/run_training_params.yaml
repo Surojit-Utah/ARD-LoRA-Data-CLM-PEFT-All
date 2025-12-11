@@ -7,8 +7,8 @@ defaults:
   tokenizer_name: null  # Use model tokenizer
   train_type: "classification"  # Changed to "classification" for last-token prediction mode
   attn_implementation: "flash_attention_2"  # Use Flash Attention 2 for better memory efficiency
-  dataset_name: "winogrande_m"  # Dataset name for prediction tracking
-  dataset_name_specific: "winogrande_m"  # Which specific dataset from Bayesian-PEFT
+  dataset_name: "winogrande_s"  # Dataset name for prediction tracking
+  dataset_name_specific: "winogrande_s"  # Which specific dataset from Bayesian-PEFT
   
   # Classification-specific configuration (NEW for ARC-Easy)
   task_mode: "classification"  # Enable classification mode (last-token prediction)
@@ -95,7 +95,7 @@ defaults:
   # Run ID: 4 kl = 0.0. There was no training instability.
   # Run ID: 3 kl = 0.01. There was training instability.
   # Run ID : 7 kl = 0.01 W/ tracking of the logvar features to understand the training instability.
-  kl_loss_beta: 0.01  # Target β_max for KL loss (reached after warmup)
+  kl_loss_beta: 0.0001  # Target β_max for KL loss (reached after warmup)
   
   # KL Loss Warmup Configuration
   enable_kl_warmup: false  # Enable linear KL warmup: β(t) = min(1, t/T_warmup) * β_max
