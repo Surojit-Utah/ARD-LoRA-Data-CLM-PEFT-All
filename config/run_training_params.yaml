@@ -121,7 +121,7 @@ defaults:
   
   # Callback Configuration - ENABLED FOR FULL ARD FUNCTIONALITY
   enable_callbacks: true   # Enable ARD callbacks for proper ARD training
-  enable_resampling: true  # Enable for dynamic validation splits
+  enable_resampling: false  # Enable for dynamic validation splits
   enable_prediction_tracking: true  # Enable prediction tracking callback
   enable_plotting: false  # Enable plotting callback for latent space visualization
   plot_start_epoch: 2  # Epoch to start plotting from
