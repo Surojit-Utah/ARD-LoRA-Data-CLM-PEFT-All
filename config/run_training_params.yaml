@@ -67,7 +67,7 @@ defaults:
   # max_lora_rank_threshold: 8
   
   # LoRA Mode Configuration
-  deterministic_lora: True  # Set to true for deterministic LoRA (MLE baseline, no KL loss)
+  deterministic_lora: False  # Set to true for deterministic LoRA (MLE baseline, no KL loss)
   
   # Target Layer Configuration - REQUIRED
   # BayesianPEFT targets: q_proj, v_proj (and optionally lm_head for classification)
@@ -95,7 +95,7 @@ defaults:
   # Run ID: 4 kl = 0.0. There was no training instability.
   # Run ID: 3 kl = 0.01. There was training instability.
   # Run ID : 7 kl = 0.01 W/ tracking of the logvar features to understand the training instability.
-  kl_loss_beta: 0.0  # Target β_max for KL loss (reached after warmup)
+  kl_loss_beta: 0.01  # Target β_max for KL loss (reached after warmup)
   
   # KL Loss Warmup Configuration
   enable_kl_warmup: false  # Enable linear KL warmup: β(t) = min(1, t/T_warmup) * β_max
@@ -121,7 +121,7 @@ defaults:
   
   # Callback Configuration - ENABLED FOR FULL ARD FUNCTIONALITY
   enable_callbacks: true   # Enable ARD callbacks for proper ARD training
-  enable_resampling: false  # Enable for dynamic validation splits
+  enable_resampling: true  # Enable for dynamic validation splits
   enable_prediction_tracking: true  # Enable prediction tracking callback
   enable_plotting: false  # Enable plotting callback for latent space visualization
   plot_start_epoch: 2  # Epoch to start plotting from
