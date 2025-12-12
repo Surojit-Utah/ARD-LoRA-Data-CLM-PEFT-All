@@ -1,14 +1,14 @@
 # LLaMA-2-7B causal LM experiments with ARD-LoRA and Bayesian-PEFT datasets
 defaults:
-  runId: 2
+  runId: 1
   # Model configuration
   model_name: "LLaMA2-7B"
   model_name_or_path: "meta-llama/Llama-2-7b-hf"
   tokenizer_name: null  # Use model tokenizer
   train_type: "classification"  # Changed to "classification" for last-token prediction mode
   attn_implementation: "flash_attention_2"  # Use Flash Attention 2 for better memory efficiency
-  dataset_name: "winogrande_s"  # Dataset name for prediction tracking
-  dataset_name_specific: "winogrande_s"  # Which specific dataset from Bayesian-PEFT
+  dataset_name: "winogrande_m"  # Dataset name for prediction tracking
+  dataset_name_specific: "winogrande_m"  # Which specific dataset from Bayesian-PEFT
   
   # Classification-specific configuration (NEW for ARC-Easy)
   task_mode: "classification"  # Enable classification mode (last-token prediction)
