@@ -1,6 +1,6 @@
 # LLaMA-2-7B causal LM experiments with ARD-LoRA and Bayesian-PEFT datasets
 defaults:
-  runId: 1
+  runId: 2
   # Model configuration
   model_name: "LLaMA2-7B"
   model_name_or_path: "meta-llama/Llama-2-7b-hf"
@@ -77,7 +77,7 @@ defaults:
   
   # ProbLoRA Model Parameters
   num_tokens: ${max_len}  # Always match max_len for full sequence ARD coverage
-  ard_prior_samples: 100  # Reduced from 100 to 25 for faster training
+  ard_prior_samples: 300  # Reduced from 100 to 25 for faster training
   
   # Numerical Stability Parameters - ULTRA CONSERVATIVE
   enable_clamps: False  # Enable/disable numerical stability clamps (default: true)
@@ -121,7 +121,7 @@ defaults:
   
   # Callback Configuration - ENABLED FOR FULL ARD FUNCTIONALITY
   enable_callbacks: true   # Enable ARD callbacks for proper ARD training
-  enable_resampling: false  # Enable for dynamic validation splits
+  enable_resampling: true  # Enable for dynamic validation splits
   enable_prediction_tracking: true  # Enable prediction tracking callback
   enable_plotting: false  # Enable plotting callback for latent space visualization
   plot_start_epoch: 2  # Epoch to start plotting from
