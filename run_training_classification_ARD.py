@@ -533,6 +533,8 @@ def main():
                     self.dataset = "ARC-Easy"
                 elif dataset_name.lower() == "arc_challenge" or dataset_name.lower() == "arc-challenge":
                     self.dataset = "ARC-Challenge"
+                elif dataset_name.lower() == "openbookqa" or dataset_name.lower() == "obqa":
+                    self.dataset = "openbookqa"
                 else:
                     self.dataset = dataset_name
                 
@@ -548,17 +550,30 @@ def main():
         args = DatasetArgs(config)
         print(f"[INFO] Dataset name for S2ClassDataset: {args.dataset}")
         
-        # Monkey-patch task_info to include ARC-Easy if not present
-        # S2ClassDataset.task_info doesn't have ARC datasets since they're handled specially
+        # Monkey-patch task_info to include datasets not present in S2ClassDataset.task_info
+        # S2ClassDataset.task_info doesn't have all datasets since some are handled specially
         # But it still tries to access task_info[args.dataset] in __init__
         if args.dataset not in S2ClassDataset.task_info:
-            # Add ARC-Easy with 4 labels (A, B, C, D) - though some have 5 (E)
+            # Determine num_labels based on dataset
+            if "ARC" in args.dataset:
+                # Add ARC-Easy/Challenge with 4 labels (A, B, C, D) - though some have 5 (E)
+                num_labels = 4
+                tokenize_keys = ("question", "choices")
+            elif args.dataset == "openbookqa":
+                # OpenBookQA uses 4-way multiple choice (A, B, C, D)
+                num_labels = 4
+                tokenize_keys = ("question_stem", "choices")
+            else:
+                # Default to 4-way multiple choice
+                num_labels = 4
+                tokenize_keys = ("question", "choices")
+            
             # The actual labels are handled in _tokenize method
             S2ClassDataset.task_info[args.dataset] = {
-                "num_labels": 4,  # Typical for ARC (can be 3-5)
-                "tokenize_keys": ("question", "choices")  # Will be handled specially
+                "num_labels": num_labels,
+                "tokenize_keys": tokenize_keys
             }
-            print(f"[INFO] Added {args.dataset} to task_info")
+            print(f"[INFO] Added {args.dataset} to task_info (num_labels={num_labels})")
         
         # Create S2ClassDataset instance (following BayesianPEFT pattern)
         dataset = S2ClassDataset(accelerator=None, args=args)
@@ -589,6 +604,10 @@ def main():
         elif dataset_name in ['winogrande_s', 'winogrande_m']:
             # Winogrande uses A, B labels (binary choice)
             labels = ['A', 'B']
+            target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
+        elif dataset_name in ['openbookqa', 'obqa']:
+            # OpenBookQA uses A, B, C, D labels (4-way multiple choice)
+            labels = ['A', 'B', 'C', 'D']
             target_ids = torch.tensor([last_token_id(tokenizer, f" {label}") for label in labels])
         elif num_classes <= 5:
             # Use letters for small number of classes (typical MCQ format)

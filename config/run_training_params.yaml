@@ -7,12 +7,12 @@ defaults:
   tokenizer_name: null  # Use model tokenizer
   train_type: "classification"  # Changed to "classification" for last-token prediction mode
   attn_implementation: "flash_attention_2"  # Use Flash Attention 2 for better memory efficiency
-  dataset_name: "winogrande_m"  # Dataset name for prediction tracking
-  dataset_name_specific: "winogrande_m"  # Which specific dataset from Bayesian-PEFT
+  dataset_name: "openbookqa"  # Dataset name for prediction tracking
+  dataset_name_specific: "openbookqa"  # Which specific dataset from Bayesian-PEFT
   
   # Classification-specific configuration (NEW for ARC-Easy)
   task_mode: "classification"  # Enable classification mode (last-token prediction)
-  num_classes: 2  # Number of answer choices for WinoGrande (A, B) - 2 choices
+  num_classes: 4  # Number of answer choices for WinoGrande (A, B) - 2 choices
   add_space_to_answers: true  # Add leading space to answer tokens (CRITICAL for tokenization!)
   few_shot_prompting: false  # Use zero-shot prompting (following BayesianPEFT)
   
@@ -26,7 +26,7 @@ defaults:
   lr_scheduler_type: "linear" #"cosine" # "linear"  # BayesianPEFT uses linear scheduler
   warmup_ratio: 0.03  # BayesianPEFT uses 0.06 warmup ratio
   weight_decay: 0.0 # 1e-03
-  train_epochs: 20  # Increased to match BayesianPEFT (they use ~5000 steps)
+  train_epochs: 10  # Increased to match BayesianPEFT (they use ~5000 steps)
   batch_size: 8  # BayesianPEFT uses batch_size=4 for classification
   gradient_accumulation_steps: 1  # No accumulation in BayesianPEFT baseline
 
@@ -221,11 +221,14 @@ datasets:
     openbookqa:
       dataset_name: "openbookqa"        # aka OBQA
       dataset_class: "S2ClassDataset"
-      # max_len: removed to use global max_len=1024 consistently
+      max_len: 300
       num_labels: 4                      # 4-way multiple choice
       validation_split_ratio: 0.1
       max_ard_ratio: 0.8
       random_seed: 42
+      add_space_to_answers: true  # REQUIRED - Add leading space to answer tokens
+      few_shot_prompting: false  # Same as arc_easy (zero-shot)
+      task_mode: "classification"  # REQUIRED - Enable classification mode
 
     winogrande_s:
       dataset_name: "winogrande_s"         # same base dataset
