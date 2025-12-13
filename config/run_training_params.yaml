@@ -27,7 +27,7 @@ defaults:
   warmup_ratio: 0.03  # BayesianPEFT uses 0.06 warmup ratio
   weight_decay: 0.0 # 1e-03
   train_epochs: 10  # Increased to match BayesianPEFT (they use ~5000 steps)
-  batch_size: 8  # BayesianPEFT uses batch_size=4 for classification
+  batch_size: 4  # BayesianPEFT uses batch_size=4 for classification
   gradient_accumulation_steps: 1  # No accumulation in BayesianPEFT baseline
 
   # Precision Configuration

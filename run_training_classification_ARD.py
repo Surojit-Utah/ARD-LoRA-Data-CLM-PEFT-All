@@ -402,7 +402,7 @@ def create_trainer(model, tokenizer, train_ds, val_ds, config, output_dir, targe
         output_dir=output_dir,
         num_train_epochs=config["train_epochs"],
         per_device_train_batch_size=config["batch_size"],
-        per_device_eval_batch_size=config["batch_size"],
+        per_device_eval_batch_size=config["batch_size"] * 4,  # Use 4x batch size for evaluation
         gradient_accumulation_steps=config["gradient_accumulation_steps"],
         learning_rate=config["learning_rate"],
         warmup_ratio=config["warmup_ratio"],
